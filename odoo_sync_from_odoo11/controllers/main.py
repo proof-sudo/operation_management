@@ -132,13 +132,14 @@ class OdooSyncController(http.Controller):
         except Exception as e:
             _logger.exception("Erreur reception AccountInvoice : %s", e)
             return {"status": "error", "message": str(e)}
-@http.route('/odoo_sync/purchase_order', type='json', auth='user', csrf=False, methods=['POST'])
-def receive_purchase_data(self, **post):
+        
+    @http.route('/odoo_sync/purchase_order', type='json', auth='user', csrf=False, methods=['POST'])
+    def receive_purchase_data(self, **post):
         try:
             raw_data = request.httprequest.data.decode('utf-8')
             data = json.loads(raw_data) if raw_data else {}
             _logger.info("PurchaseOrder reçu : %s", json.dumps(data, indent=2))
-            
+
         except Exception as e:
-            _logger.exception("Erreur reception AccountInvoice : %s", e)
+            _logger.exception("Erreur reception PurchaseOrder : %s", e)
             return {"status": "error", "message": str(e)}
