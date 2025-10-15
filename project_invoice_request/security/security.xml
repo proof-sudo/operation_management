@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Catégorie pour la facturation projet -->
+        <record id="module_category_project_invoicing" model="ir.module.category">
+            <field name="name">Facturation Projet</field>
+            <field name="description">Gestion des demandes de facturation projet</field>
+            <field name="sequence">150</field>
+        </record>
+
+        <!-- Groupe Validateurs -->
+        <record id="group_project_invoice_validator" model="res.groups">
+            <field name="name">Validateur Facturation</field>
+            <field name="category_id" ref="module_category_project_invoicing"/>
+            <field name="users" eval="[(4, ref('base.user_admin'))]"/>
+        </record>
+
+        <!-- Groupe Comptables -->
+        <record id="group_project_invoice_accountant" model="res.groups">
+            <field name="name">Comptable Facturation</field>
+            <field name="category_id" ref="module_category_project_invoicing"/>
+            <field name="users" eval="[(4, ref('base.user_admin'))]"/>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Inheritance de la vue formulaire du modèle project.project -->
+        <record id="inherit_view_id_inherit_module_namee" model="ir.ui.view">
+            <field name="name">project.odoosyncfromodoo11.view.form.inheritt</field>
+            <field name="model">project.project</field>
+            <field name="inherit_id" ref="project.edit_project"/>
+            <field name="arch" type="xml">
+                <xpath expr="//notebook" position="before">
+                    <group string="Informations Projet" colspan="4" >
+                        <group >
+                            <field name="bc" readonly="1"/>
+                            <field name="nature" />
+                            <field name="domaine" />
+                            <field name="am" />
+                            <field name="presales" />
+                            <field name="date_in" />
+                            <field name="pays" />
+                            <field name="sc" />
+                            <field name="delaicontractuel" />
+                            <!-- <field name="cas" /> -->
+                            
+                        </group>
+                        <group >
+                            <field name="revenue_type" />
+                            <field name="circuit" />
+                            <!-- <field name="cafy" />
+                            <field name="rafytd" />
+                            <field name="cafypercent" />
+                            <field name="rafy_1" />
+                            <field name="projected_caf_y" />
+                            <field name="raftotal" />
+                            <field name="percentcaftotal" /> -->
+                            <field name="priorite" />
+                            <field name="risque" />
+                            <field name="last_notice_date" />
+                            <field name="contratstartdate" />
+                            <field name="contratenddate" />
+                            
+                        </group>
+                        
+
+                    </group>
+                </xpath>
+                
+            </field>
+        </record>
+    </data>
+</odoo>

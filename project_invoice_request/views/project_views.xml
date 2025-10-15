@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Hériter de la vue formulaire du projet pour ajouter le bouton -->
+    <record id="project_project_form_inheritt" model="ir.ui.view">
+        <field name="name">project.project.form.inheritt</field>
+        <field name="model">project.project</field>
+        <field name="inherit_id" ref="project.edit_project"/>
+        <field name="arch" type="xml">
+            <!-- Ajouter le bouton dans le header -->
+            <xpath expr="//header" position="inside">
+                <div class="oe_button_box" name="button_box">
+                    <button name="action_request_invoice" 
+                            string="Demande de Facturation" 
+                            type="object" 
+                            class="btn-primary"
+                            />
+                    
+                    <!-- Smart button pour voir les demandes -->
+                    <button class="oe_stat_button" 
+                            name="action_view_invoice_requests" 
+                            type="object"
+                            icon="fa-file-text-o">
+                        <field name="invoice_request_count" widget="statinfo" string="Demandes"/>
+                        <div class="o_stat_text">
+                            <span class="o_stat_value">
+                                <field name="invoice_request_count"/>
+                            </span>
+                            <span class="o_stat_text">Demandes</span>
+                        </div>
+                    </button>
+                </div>
+            </xpath>
+            
+            <!-- Ajouter le champ montant facturé -->
+            <xpath expr="//field[@name='date_start']" position="after">
+                <field name="total_invoiced_amount" widget="monetary" 
+                       options="{'currency_field': 'currency_id'}"
+                       string="Montant Facturé"/>
+                <field name="total_backlog" widget="monetary" 
+                       options="{'currency_field': 'currency_id'}"
+                       string="Backlog Restant"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Héritage de la vue liste des projets -->
+    <!-- <record id="view_project_tree_inherit_custom_fields" model="ir.ui.view">
+        <field name="name">project.tree.inherit.custom.fields</field>
+        <field name="model">project.project</field>
+        <field name="inherit_id" ref="project.view_project"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="total_invoiced_amount" string="Facturé" 
+                       widget="monetary" options="{'currency_field': 'currency_id'}" 
+                       optional="show"/>
+                <field name="invoice_request_count" string="Demandes" 
+                       widget="statinfo" optional="show"/>
+                <field name="total_backlog" string="Backlog" 
+                       widget="monetary" options="{'currency_field': 'currency_id'}" 
+                       optional="show"/>
+            </xpath>
+            
+        </field>
+    </record> -->
+
+ 
+
+</odoo>

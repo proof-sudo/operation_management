@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Héritage de la vue liste des projets -->
+    <record id="view_project_tree_inherit_custom_fieldsss" model="ir.ui.view">
+        <field name="name">project.tree.inherit.custom.fieldsss</field>
+        <field name="model">project.project</field>
+        <field name="inherit_id" ref="project.view_project"/>
+        <field name="arch" type="xml">
+            
+            <!-- Ajout des champs après le nom du projet -->
+            <xpath expr="//field[@name='name']" position="after">
+                
+                <!-- Section Nature et Domaine -->
+                <field name="nature" string="Nature" optional="show"/>
+                <field name="domaine" string="Domaine" optional="show"/>
+                
+                <!-- Section Commande et Références -->
+                <field name="bc" string="Commande Liée" optional="show"/>
+                <!-- <field name="bc" string="Commande Client" optional="show"/> -->
+                
+                <!-- Section Contacts -->
+                <field name="am" string="AM" optional="show"/>
+                <field name="presales" string="Presales" optional="show"/>
+                <field name="sc" string="SC" optional="show"/>
+                
+                <!-- Section Localisation -->
+                <field name="pays" string="Pays" optional="show"/>
+                
+                <!-- Section Circuit et Priorité -->
+                <field name="circuit" string="Circuit" optional="show"/>
+                <field name="priorite" string="Priorité" optional="show"/>
+                
+                <!-- Section Dates -->
+                <field name="date_in" string="Date IN" optional="show"/>
+                <field name="contratstartdate" string="Début Contrat" optional="show"/>
+                <field name="contratenddate" string="Fin Contrat" optional="show"/>
+                <field name="delaicontractuel" string="Délai Contractuel" optional="show"/>
+                <field name="last_notice_date" string="Last Notice" optional="show"/>
+                
+                <!-- Section Financière -->
+                <field name="cas" string="CAS" optional="show"/>
+                <field name="revenue_type" string="Type Revenue" optional="show"/>
+                <field name="cafy" string="CAF YTD" optional="show"/>
+                <field name="rafytd" string="Raf YTD" optional="show"/>
+                <field name="cafypercent" string="CAF YTD %" optional="show"/>
+                <field name="rafy_1" string="Raf Y+1" optional="show"/>
+                <field name="projected_caf_y" string="Projected CAF Y" optional="show"/>
+                <field name="raftotal" string="Raf Total" optional="show"/>
+                <field name="percentcaftotal" string="% CAF Total" optional="show"/>
+                
+                
+                <!-- Section Risque -->
+                <field name="risque" string="Risque" optional="show"/>
+                
+            </xpath>
+            
+        </field>
+    </record>
+
+
+ 
+
+</odoo>
