@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_project_kanban_inherit_invoice_amount_enhancedd" model="ir.ui.view">
+        <field name="name">project.kanban.inherit.invoice.amount.enhancedd</field>
+        <field name="model">project.project</field>
+        <field name="inherit_id" ref="project.view_project_kanban"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('o_project_kanban_boxes')]" position="inside">
+                <!-- Montant facturé -->
+                <div class="o_project_kanban_box" role="listitem">
+                    <div class="o_value text-success" t-if="record.total_invoiced_amount.raw_value > 0">
+                        <field name="total_invoiced_amount" widget="monetary" 
+                               options="{'currency_field': 'currency_id'}"/>
+                    </div>
+                    <div class="o_value" t-else="">
+                        <field name="total_invoiced_amount" widget="monetary" 
+                               options="{'currency_field': 'currency_id'}"/>
+                    </div>
+                    <div class="o_label">Facturé</div>
+                </div>
+                
+                <!-- Nombre de demandes avec lien cliquable -->
+                <div class="o_project_kanban_box" role="listitem">
+                    <div class="o_value">
+                            <field name="cas"/>
+                    </div>
+                    <div class="o_label">BC Montant</div>
+                </div>
+                <!-- <field name="user_id"/> -->
+                    <div class="o_value">
+                            <field name="total_backlog"/>
+                    </div>
+                    <div class="o_label">Total Backlog</div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Séquence pour la référence des demandes -->
+    <record id="seq_project_invoice_request" model="ir.sequence">
+        <field name="name">Demande de Facturation Projet</field>
+        <field name="code">project.invoice.request</field>
+        <field name="prefix">DFP</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

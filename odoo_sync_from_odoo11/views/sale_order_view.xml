@@ -1,0 +1,18 @@
+<odoo>
+    <record id="view_order_form_inherit_project_creationn" model="ir.ui.view">
+        <field name="name">sale.order.form.inherit.project.creationn</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <!-- On ajoute le bouton dans l'en-tête (header) -->
+            <xpath expr="//header" position="inside">
+                <button name="action_open_create_project_wizard"
+                        string="Créer un Projet"
+                        type="object"
+                        class="oe_highlight"
+                        invisible="state != 'sale'"
+                       />
+            </xpath>
+        </field>
+    </record>
+</odoo>

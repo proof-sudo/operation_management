@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_project_invoice_request_user,project.invoice.request.user,model_project_invoice_request,project.group_project_user,1,1,1,0
+access_project_invoice_request_manager,project.invoice.request.manager,model_project_invoice_request,project.group_project_manager,1,1,1,1
+access_project_invoice_request_line_user,project.invoice.request.line.user,model_project_invoice_request_line,project.group_project_user,1,1,1,0
+access_project_invoice_request_line_manager,project.invoice.request.line.manager,model_project_invoice_request_line,project.group_project_manager,1,1,1,1
+access_project_invoice_request_wizard,project.invoice.request.wizard,model_project_invoice_request_wizard,project.group_project_user,1,1,1,1

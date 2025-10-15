@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+<record id="view_project_invoice_request_wizard_form" model="ir.ui.view">
+    <field name="name">project.invoice.request.wizard.form</field>
+    <field name="model">project.invoice.request.wizard</field>
+    <field name="arch" type="xml">
+        <form string="Demande de Facturation">
+            <sheet>
+                <group>
+                    <group string="Informations Projet" col="6">
+                        <field name="project_id" readonly="1"/>
+                        <field name="sale_order_id" readonly="1"/>
+                    </group>
+                    <group string="Montants" >
+                        <field name="currency_id" invisible="1"/>
+                        <field name="montant_total_bc" 
+                               readonly="1"
+                               widget="monetary" 
+                               options="{'currency_field': 'currency_id'}"/>
+                        <field name="montant_deja_facture" 
+                               readonly="1"
+                               widget="monetary" 
+                               options="{'currency_field': 'currency_id'}"/>
+                        <field name="montant_disponible" 
+                               readonly="1"
+                               widget="monetary" 
+                               options="{'currency_field': 'currency_id'}"/>
+                        <field name="montant_a_facturer" 
+                               required="1"
+                               widget="monetary" 
+                               options="{'currency_field': 'currency_id'}"/>
+                    </group>
+                </group>
+                
+                <group string="Description de la facturation">
+                    <field name="description" 
+                           placeholder="Décrire les travaux ou services à facturer..." 
+                           nolabel="1"
+                           class="mt16"/>
+                </group>
+                
+                <group string="Documents à Joindre">
+                    <field name="attachment_ids" 
+                           string="Documents"
+                           widget="many2many_binary"
+                           context="{
+                               'default_res_model': 'project.invoice.request.wizard', 
+                               'default_res_id': id
+                           }"
+                           options="{'preview_name': 'name'}"
+                           class="mt16"/>
+                </group>
+            </sheet>
+            
+            <footer>
+                <button name="action_submit_request" 
+                        string="Soumettre la Demande" 
+                        type="object" 
+                        class="btn-primary"
+                        />
+                <button string="Annuler" class="btn-secondary" special="cancel"/>
+            </footer>
+        </form>
+    </field>
+</record>
+</odoo>

@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        
+        <!-- Template pour demande soumise (notification aux validateurs) -->
+        <record id="email_template_demande_soumis" model="mail.template">
+            <field name="name">Demande Soumise - Validateurs</field>
+            <field name="model_id" ref="model_project_invoice_request"/>
+            <field name="subject">Nouvelle Demande de Facturation - ${object.name}</field>
+            <field name="email_from">${user.email}</field>
+            <field name="email_to">${','.join(object.env['res.groups'].browse(ref('project_invoice_request.group_project_invoice_validator')).users.mapped('email'))}</field>
+            <field name="body_html"><![CDATA[
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #17a2b8;">📋 Nouvelle Demande de Facturation</h2>
+                    
+                    <p>Une nouvelle demande de facturation a été soumise pour validation.</p>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                        <h3 style="margin-top: 0; color: #495057;">Détails de la demande :</h3>
+                        <table style="width: 100%;">
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold; width: 120px;">Référence :</td>
+                                <td style="padding: 5px;"><strong>${object.name}</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Projet :</td>
+                                <td style="padding: 5px;">${object.project_id.name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Client :</td>
+                                <td style="padding: 5px;">${object.sale_order_id.partner_id.name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Montant :</td>
+                                <td style="padding: 5px;"><strong>${object.total_amount} ${object.currency_id.symbol}</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Soumise par :</td>
+                                <td style="padding: 5px;">${object.create_uid.name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Date :</td>
+                                <td style="padding: 5px;">${format_datetime(object.create_date, tz=user.tz, dt_format='dd/MM/yyyy HH:mm')}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div style="text-align: center; margin: 20px 0;">
+                        <a href="${object.get_base_url()}/web#id=${object.id}&model=project.invoice.request&view_type=form" 
+                           style="background: #17a2b8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">
+                           👁️ Voir la demande
+                        </a>
+                    </div>
+                    
+                    <p style="color: #6c757d; font-size: 12px; border-top: 1px solid #dee2e6; padding-top: 15px;">
+                        Cet email a été envoyé automatiquement. Merci de traiter cette demande dans les plus brefs délais.
+                    </p>
+                </div>
+            ]]></field>
+        </record>
+
+        <!-- Template pour demande approuvée (notification aux comptables) -->
+        <record id="email_template_demande_approuve" model="mail.template">
+            <field name="name">Demande Approuvée - Comptables</field>
+            <field name="model_id" ref="model_project_invoice_request"/>
+            <field name="subject">✅ Demande de Facturation Approuvée - ${object.name}</field>
+            <field name="email_from">${user.email}</field>
+            <field name="email_to">${ctx.get('email_to', '')}</field>
+            <field name="body_html"><![CDATA[
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #28a745;">✅ Demande Approuvée</h2>
+                    
+                    <p>Une demande de facturation a été <strong>approuvée</strong> et nécessite un traitement comptable.</p>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                        <h3 style="margin-top: 0; color: #495057;">Détails pour facturation :</h3>
+                        <table style="width: 100%;">
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold; width: 120px;">Référence :</td>
+                                <td style="padding: 5px;"><strong>${object.name}</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Projet :</td>
+                                <td style="padding: 5px;">${object.project_id.name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Client :</td>
+                                <td style="padding: 5px;">${object.sale_order_id.partner_id.name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Commande :</td>
+                                <td style="padding: 5px;">${object.sale_order_id.name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Montant :</td>
+                                <td style="padding: 5px;"><strong style="color: #28a745;">${object.total_amount} ${object.currency_id.symbol}</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Approuvée par :</td>
+                                <td style="padding: 5px;">${user.name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Date :</td>
+                                <td style="padding: 5px;">${format_datetime(object.write_date, tz=user.tz, dt_format='dd/MM/yyyy HH:mm')}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div style="background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                        <h4 style="margin-top: 0; color: #155724;">Lignes à facturer :</h4>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #d4edda;">
+                                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #c3e6cb;">Produit</th>
+                                    <th style="padding: 8px; text-align: right; border-bottom: 1px solid #c3e6cb;">Quantité</th>
+                                    <th style="padding: 8px; text-align: right; border-bottom: 1px solid #c3e6cb;">Prix Unitaire</th>
+                                    <th style="padding: 8px; text-align: right; border-bottom: 1px solid #c3e6cb;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                % for line in object.line_ids:
+                                <tr>
+                                    <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">${line.product_id.name}</td>
+                                    <td style="padding: 8px; text-align: right; border-bottom: 1px solid #dee2e6;">${line.qty_to_invoice}</td>
+                                    <td style="padding: 8px; text-align: right; border-bottom: 1px solid #dee2e6;">${line.price_unit} ${object.currency_id.symbol}</td>
+                                    <td style="padding: 8px; text-align: right; border-bottom: 1px solid #dee2e6;"><strong>${line.subtotal} ${object.currency_id.symbol}</strong></td>
+                                </tr>
+                                % endfor
+                                <tr style="background: #f8f9fa;">
+                                    <td colspan="3" style="padding: 8px; text-align: right; font-weight: bold;">Total :</td>
+                                    <td style="padding: 8px; text-align: right; font-weight: bold; color: #28a745;">${object.total_amount} ${object.currency_id.symbol}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div style="text-align: center; margin: 20px 0;">
+                        <a href="${object.get_base_url()}/web#id=${object.id}&model=project.invoice.request&view_type=form" 
+                           style="background: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">
+                           🧾 Procéder à la facturation
+                        </a>
+                    </div>
+                    
+                    <p style="color: #6c757d; font-size: 12px; border-top: 1px solid #dee2e6; padding-top: 15px;">
+                        Cet email a été envoyé automatiquement. Veuillez procéder à la facturation de ce projet.
+                    </p>
+                </div>
+            ]]></field>
+        </record>
+
+        <!-- Template pour demande rejetée (notification au créateur) -->
+        <record id="email_template_demande_rejet" model="mail.template">
+            <field name="name">Demande Rejetée - Notification</field>
+            <field name="model_id" ref="model_project_invoice_request"/>
+            <field name="subject">❌ Demande de Facturation Rejetée - ${object.name}</field>
+            <field name="email_from">${user.email}</field>
+            <field name="email_to">${object.create_uid.email}</field>
+            <field name="partner_to">${object.create_uid.partner_id.id}</field>
+            <field name="body_html"><![CDATA[
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #dc3545;">❌ Demande Rejetée</h2>
+                    
+                    <p>Bonjour <strong>${object.create_uid.name}</strong>,</p>
+                    
+                    <p>Votre demande de facturation a été <strong>rejetée</strong> par le validateur.</p>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                        <h3 style="margin-top: 0; color: #495057;">Détails de la demande :</h3>
+                        <table style="width: 100%;">
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold; width: 120px;">Référence :</td>
+                                <td style="padding: 5px;"><strong>${object.name}</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Projet :</td>
+                                <td style="padding: 5px;">${object.project_id.name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Client :</td>
+                                <td style="padding: 5px;">${object.sale_order_id.partner_id.name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Montant :</td>
+                                <td style="padding: 5px;"><strong>${object.total_amount} ${object.currency_id.symbol}</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Rejetée par :</td>
+                                <td style="padding: 5px;">${user.name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px; font-weight: bold;">Date :</td>
+                                <td style="padding: 5px;">${format_datetime(object.write_date, tz=user.tz, dt_format='dd/MM/yyyy HH:mm')}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div style="background: #f8d7da; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                        <h4 style="margin-top: 0; color: #721c24;">📞 Contactez le validateur :</h4>
+                        <p>
+                            Pour plus d'informations sur les raisons du rejet, veuillez contacter :<br/>
+                            <strong>${user.name}</strong> - <a href="mailto:${user.email}">${user.email}</a>
+                        </p>
+                    </div>
+                    
+                    <div style="text-align: center; margin: 20px 0;">
+                        <a href="${object.get_base_url()}/web#id=${object.id}&model=project.invoice.request&view_type=form" 
+                           style="background: #6c757d; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">
+                           📋 Voir la demande
+                        </a>
+                    </div>
+                    
+                    <p style="color: #6c757d; font-size: 12px; border-top: 1px solid #dee2e6; padding-top: 15px;">
+                        Cet email a été envoyé automatiquement. Merci de ne pas y répondre.
+                    </p>
+                </div>
+            ]]></field>
+        </record>
+
+    </data>
+</odoo>

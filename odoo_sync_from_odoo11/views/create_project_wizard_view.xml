@@ -1,0 +1,25 @@
+<odoo>
+    <record id="view_create_project_wizard_formm" model="ir.ui.view">
+        <field name="name">create.project.wizard.formm</field>
+        <field name="model">create.project.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Créer un Projet">
+                <group>
+                    <!-- <field name="name"/> -->
+                    <field name="sale_order_reference"/>
+                    <field name="chef_de_projet"/>
+                    <field name="circuit"/>
+                    <field name="delaicontractuel"/>
+                    <field name="priorite"/>
+                    <field name="amount_total" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="sale_order_id" invisible="1"/>
+                </group>
+                <footer>
+                    <button name="action_create_project" string="Créer le Projet" type="object" class="btn-primary"/>
+                    <button string="Annuler" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
