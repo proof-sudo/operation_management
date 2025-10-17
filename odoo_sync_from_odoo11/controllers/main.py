@@ -136,6 +136,7 @@ class OdooSyncController(http.Controller):
     @http.route('/odoo_sync/purchase_order', type='json', auth='user', csrf=False, methods=['POST'])
     def receive_purchase_data(self, **post):
         try:
+            _logger.info("Début réception PurchaseOrder")
             raw_data = request.httprequest.data.decode('utf-8')
             data = json.loads(raw_data) if raw_data else {}
             _logger.info("PurchaseOrder reçu : %s", json.dumps(data, indent=2))
