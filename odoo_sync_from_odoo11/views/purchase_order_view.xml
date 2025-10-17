@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        
+        <!-- Ajout des champs dans le formulaire commande d'achat -->
+        <record id="view_purchase_order_form_dossier_dates" model="ir.ui.view">
+            <field name="name">purchase.order.form.dossier.dates</field>
+            <field name="model">purchase.order</field>
+            <field name="inherit_id" ref="purchase.purchase_order_form"/>
+            <field name="arch" type="xml">
+                
+                <!-- Ajout dans la section principale -->
+                <xpath expr="//field[@name='project_id']" position="after">
+                    <field name="dossier_id" string="Dossier"/>
+                    <field name="statut_livraison" string="Statut de Livraison"/>
+                </xpath>
+
+                <xpath expr="//field[@name='project_id']" position="before">
+                    <field name="date_enlevement" string="Date d'Enlèvement"/>
+                </xpath>
+                
+                
+                
+            </field>
+        </record>
+
+        <!-- Ajout dans la vue liste -->
+        <record id="view_purchase_order_tree_dossier_dates" model="ir.ui.view">
+            <field name="name">purchase.order.tree.dossier.dates</field>
+            <field name="model">purchase.order</field>
+            <field name="inherit_id" ref="purchase.purchase_order_tree"/>
+            <field name="arch" type="xml">
+                <field name="partner_ref" position="after">
+                   <field name="date_enlevement" string="Date d'Enlèvement" optional="show"/>
+                    <field name="dossier_id" string="Dossier" optional="show"/>
+                    <field name="statut_livraison" string="Statut de Livraison" optional="show"/>
+                </field>
+            </field>
+        </record>
+
+        <!-- Ajout dans la recherche -->
+        <record id="view_purchase_order_search_dossier_dates" model="ir.ui.view">
+            <field name="name">purchase.order.search.dossier.dates</field>
+            <field name="model">purchase.order</field>
+            <field name="inherit_id" ref="purchase.view_purchase_order_filter"/>
+            <field name="arch" type="xml">
+                <xpath expr="//filter[1]" position="after">
+                    <filter name="avec_dossier" string="Avec Dossier" 
+                            domain="[('dossier_id', '!=', False)]"/>
+                    
+                    <filter name="sans_dossier" string="Sans Dossier" 
+                            domain="[('dossier_id', '=', False)]"/>
+                    <filter name="statut_livraison" string="Statut de Livraison" domain="[]" context="{'group_by': 'statut_livraison'}"/>
+                    <filter name="statut_en_attente" string="En Attente" 
+                            domain="[('statut_livraison', '=', 'en_attente')]"/>
+                    
+                    <filter name="statut_partiellement_livre" string="Partiellement Livré" 
+                            domain="[('statut_livraison', '=', 'partiellement_livre')]"/>
+                    
+                    <filter name="statut_livre" string="Livré" 
+                            domain="[('statut_livraison', '=', 'livre')]"/>
+                    
+                    <filter name="statut_annule" string="Annulé" 
+                            domain="[('statut_livraison', '=', 'annule')]"/>
+                    
+                    <filter name="statut_placee" string="Placée" 
+                            domain="[('statut_livraison', '=', 'placee')]"/>
+                    <filter name="enlevement_aujourdhui" string="Enlèvement Aujourd'hui" 
+                            domain="[('date_enlevement', '>=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date_enlevement', '&lt;', (context_today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    
+                    <filter name="enlevement_semaine" string="Enlèvement Cette Semaine" 
+                            domain="[('date_enlevement', '>=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date_enlevement', '&lt;', (context_today() + datetime.timedelta(days=7)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    
+                    <filter name="enlevement_passe" string="Enlèvement Passé" 
+                            domain="[('date_enlevement', '&lt;', context_today().strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter name="enlevement_futur" string="Enlèvement Futur" 
+                            domain="[('date_enlevement', '&gt;', context_today().strftime('%Y-%m-%d 00:00:00'))]"/>
+                    
+                    <filter name="sans_enlevement" string="Sans Date d'Enlèvement" 
+                            domain="[('date_enlevement', '=', False)]"/>
+                    <filter name="urgent" string="⚠️  Urgent - Enlèvement Aujourd'hui" 
+                            domain="[('date_enlevement', '>=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date_enlevement', '&lt;', (context_today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00')), ('statut_livraison', 'in', ['en_attente', 'placee'])]"/>
+                    
+                    <filter name="en_retard" string="⏰  En Retard" 
+                            domain="[('date_enlevement', '&lt;', context_today().strftime('%Y-%m-%d 00:00:00')), ('statut_livraison', 'in', ['en_attente', 'placee'])]"/>
+                    
+                    <filter name="a_livrer" string="📦  À Livrer Cette Semaine" 
+                            domain="[('date_enlevement', '>=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date_enlevement', '&lt;', (context_today() + datetime.timedelta(days=7)).strftime('%Y-%m-%d 00:00:00')), ('statut_livraison', 'in', ['en_attente', 'placee'])]"/>
+                            <separator/>
+                    <filter name="groupby_dossier" string="Par Dossier" 
+                            context="{'group_by': 'dossier_id'}"/>
+                    
+                    <filter name="groupby_statut_livraison" string="Par Statut Livraison" 
+                            context="{'group_by': 'statut_livraison'}"/>
+                    
+                    <filter name="groupby_date_enlevement" string="Par Date Enlèvement" 
+                            context="{'group_by': 'date_enlevement:day'}"/>
+                    
+                    <filter name="groupby_fournisseur" string="Par Fournisseur" 
+                            context="{'group_by': 'partner_id'}"/>
+                </xpath>
+            </field>
+        </record>
+
+    </data>
+</odoo>
