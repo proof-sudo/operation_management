@@ -133,7 +133,7 @@ class OdooSyncController(http.Controller):
             _logger.exception("Erreur reception AccountInvoice : %s", e)
             return {"status": "error", "message": str(e)}
         
-    @http.route('/odoo_sync/purchase_order', type='json', auth='user', csrf=False, methods=['POST'])
+    @http.route('/odoo_sync/purchase_order', type='json', auth='public', csrf=False, methods=['POST'])
     def receive_purchase_data(self, **post):
         try:
             _logger.info("Début réception PurchaseOrder")
