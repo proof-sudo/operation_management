@@ -141,6 +141,196 @@ class OdooSyncController(http.Controller):
             data = json.loads(raw_data) if raw_data else {}
             _logger.info("PurchaseOrder reçu : %s", json.dumps(data, indent=2))
 
+            # Traitement des données
+            result = self._process_purchase_order(data)
+            return result
+
         except Exception as e:
             _logger.exception("Erreur reception PurchaseOrder : %s", e)
             return {"status": "error", "message": str(e)}
+
+    def _process_purchase_order(self, data):
+        """Traite et crée la commande d'achat dans Odoo 18"""
+        try:
+            # Rechercher le fournisseur
+            partner_id = self._find_or_create_partner(data.get('partner_id'))
+            if not partner_id:
+                return {"status": "error", "message": "Fournisseur non trouvé"}
+
+            # Rechercher la société
+            company_id = self._find_company(data.get('company_id'))
+            if not company_id:
+                return {"status": "error", "message": "Société non trouvée"}
+
+            # Vérifier si la commande existe déjà
+            existing_order = request.env['purchase.order'].sudo().search([
+                ('name', '=', data.get('name'))
+            ], limit=1)
+
+            if existing_order:
+                _logger.info("Commande existe déjà: %s", data.get('name'))
+                return {"status": "success", "message": "Commande déjà existante", "purchase_id": existing_order.id}
+
+            # Préparer les valeurs pour la commande
+            order_vals = {
+                'name': data.get('name'),
+                'partner_id': partner_id,
+                'date_order': data.get('date_order'),
+                'date_approve': data.get('date_approve'),
+                'currency_id': self._find_currency(data.get('currency_id')),
+                'notes': data.get('notes', ''),
+                'origin': f"Sync Odoo11: {data.get('name')}",
+                'company_id': company_id,
+            }
+
+            # Créer la commande
+            purchase_order = request.env['purchase.order'].sudo().create(order_vals)
+
+            # Créer les lignes de commande
+            order_lines_data = data.get('order_lines_data', [])
+            for line_data in order_lines_data:
+                self._create_order_line(purchase_order.id, line_data)
+
+            # Confirmer la commande
+            purchase_order.button_confirm()
+
+            _logger.info("✅ Commande créée avec succès: %s (ID: %s)", purchase_order.name, purchase_order.id)
+
+            return {
+                "status": "success", 
+                "message": "Commande créée avec succès", 
+                "purchase_id": purchase_order.id,
+                "purchase_name": purchase_order.name
+            }
+
+        except Exception as e:
+            _logger.exception("Erreur traitement PurchaseOrder: %s", str(e))
+            return {"status": "error", "message": f"Erreur traitement: {str(e)}"}
+
+    def _find_or_create_partner(self, partner_data):
+        """Trouve ou crée le fournisseur"""
+        if not partner_data:
+            return False
+
+        partner_id = partner_data[0] if isinstance(partner_data, list) else partner_data
+        partner_name = partner_data[1] if isinstance(partner_data, list) else "Fournisseur Inconnu"
+
+        # Rechercher par ID original ou par nom
+        partner = request.env['res.partner'].sudo().search([
+            '|',
+            ('ref_odoo11', '=', partner_id),
+            ('name', '=', partner_name)
+        ], limit=1)
+
+        if not partner:
+            # Créer le fournisseur
+            partner = request.env['res.partner'].sudo().create({
+                'name': partner_name,
+                'ref_odoo11': partner_id,
+                'company_type': 'company',
+                'supplier_rank': 1,
+            })
+            _logger.info("Nouveau fournisseur créé: %s (Ref Odoo11: %s)", partner_name, partner_id)
+
+        return partner.id
+
+    def _find_company(self, company_data):
+        """Trouve la société"""
+        if not company_data:
+            return request.env.company.id
+
+        company_name = company_data[1] if isinstance(company_data, list) else company_data
+        company = request.env['res.company'].sudo().search([
+            ('name', '=', company_name)
+        ], limit=1)
+
+        return company.id if company else request.env.company.id
+
+    def _find_currency(self, currency_data):
+        """Trouve la devise"""
+        if not currency_data:
+            return request.env.company.currency_id.id
+
+        currency_name = currency_data[1] if isinstance(currency_data, list) else currency_data
+        currency = request.env['res.currency'].sudo().search([
+            ('name', '=', currency_name)
+        ], limit=1)
+
+        return currency.id if currency else request.env.company.currency_id.id
+
+    def _create_order_line(self, order_id, line_data):
+        """Crée une ligne de commande d'achat"""
+        try:
+            # Trouver ou créer le produit
+            product_id = self._find_or_create_product(line_data.get('product_id'))
+
+            # Préparer les valeurs de la ligne
+            line_vals = {
+                'order_id': order_id,
+                'product_id': product_id,
+                'product_qty': line_data.get('product_qty', 1.0),
+                'price_unit': line_data.get('price_unit', 0.0),
+                'name': line_data.get('name', ''),
+                'date_planned': line_data.get('date_planned'),
+            }
+
+            # Créer la ligne
+            order_line = request.env['purchase.order.line'].sudo().create(line_vals)
+
+            # Gérer les taxes si disponibles
+            taxes_data = line_data.get('taxes_id')
+            if taxes_data and isinstance(taxes_data, list) and len(taxes_data) > 2:
+                tax_ids = taxes_data[2]  # Récupérer les IDs de taxes
+                if tax_ids:
+                    taxes = request.env['account.tax'].sudo().search([
+                        ('ref_odoo11', 'in', tax_ids)
+                    ])
+                    if taxes:
+                        order_line.taxes_id = taxes
+
+            return order_line.id
+
+        except Exception as e:
+            _logger.error("Erreur création ligne commande: %s", str(e))
+            return False
+
+    def _find_or_create_product(self, product_data):
+        """Trouve ou crée un produit"""
+        if not product_data:
+            # Retourner un produit générique si non spécifié
+            generic_product = request.env['product.product'].sudo().search([
+                ('default_code', '=', 'GENERIC')
+            ], limit=1)
+            
+            if not generic_product:
+                generic_product = request.env['product.product'].sudo().create({
+                    'name': 'Produit Générique',
+                    'default_code': 'GENERIC',
+                    'type': 'service',
+                    'purchase_ok': True,
+                })
+            return generic_product.id
+
+        product_id = product_data[0] if isinstance(product_data, list) else product_data
+        product_name = product_data[1] if isinstance(product_data, list) else "Produit Inconnu"
+
+        # Rechercher par ID original ou par nom
+        product = request.env['product.product'].sudo().search([
+            '|',
+            ('ref_odoo11', '=', product_id),
+            ('name', '=', product_name)
+        ], limit=1)
+
+        if not product:
+            # Créer le produit
+            product = request.env['product.product'].sudo().create({
+                'name': product_name,
+                'ref_odoo11': product_id,
+                'type': 'service',  # ou 'product' selon le besoin
+                'purchase_ok': True,
+                'sale_ok': False,
+                'default_code': f"ODOO11_{product_id}",
+            })
+            _logger.info("Nouveau produit créé: %s (Ref Odoo11: %s)", product_name, product_id)
+
+        return product.id
