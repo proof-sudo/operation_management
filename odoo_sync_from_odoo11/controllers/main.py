@@ -166,17 +166,29 @@ class OdooSyncController(http.Controller):
                 _logger.info("Commande existe déjà: %s", data.get('name'))
                 return {"status": "success", "message": "Commande déjà existante", "purchase_id": existing_order.id}
 
+            # Gérer le dossier
+            dossier_name = self._extract_dossier_name(data.get('dossier_data'))
+
             # Préparer les valeurs pour la commande
             order_vals = {
                 'name': data.get('name'),
                 'partner_id': partner_id,
                 'date_order': data.get('date_order'),
+                'partner_ref': data.get('partner_ref', ''),
                 'date_approve': data.get('date_approve'),
                 'currency_id': self._find_currency(data.get('currency_id')),
                 'notes': data.get('notes', ''),
                 'origin': f"Sync Odoo11: {data.get('name')}",
                 'company_id': request.env.company.id,
             }
+
+            # Ajouter partner_ref s'il existe
+            if data.get('partner_ref'):
+                order_vals['partner_ref'] = data.get('partner_ref')
+
+            # Ajouter le dossier_id (nom du dossier)
+            if dossier_name:
+                order_vals['dossier_id'] = dossier_name
 
             # Créer la commande
             purchase_order = request.env['purchase.order'].sudo().create(order_vals)
@@ -189,18 +201,31 @@ class OdooSyncController(http.Controller):
             # Confirmer la commande
             purchase_order.button_confirm()
 
-            _logger.info("✅ Commande créée avec succès: %s (ID: %s)", purchase_order.name, purchase_order.id)
+            _logger.info("✅ Commande créée avec succès: %s (ID: %s, Dossier: %s)", purchase_order.name, purchase_order.id, dossier_name)
 
             return {
                 "status": "success", 
                 "message": "Commande créée avec succès", 
                 "purchase_id": purchase_order.id,
-                "purchase_name": purchase_order.name
+                "purchase_name": purchase_order.name,
+                "dossier_id": dossier_name
             }
 
         except Exception as e:
             _logger.exception("Erreur traitement PurchaseOrder: %s", str(e))
             return {"status": "error", "message": f"Erreur traitement: {str(e)}"}
+
+    def _extract_dossier_name(self, dossier_data):
+        """Extrait le nom du dossier depuis les données"""
+        if not dossier_data:
+            return False
+
+        # Priorité: name, puis project_name
+        dossier_name = dossier_data.get('name')
+        if not dossier_name:
+            dossier_name = dossier_data.get('project_name')
+
+        return dossier_name
 
     def _find_partner(self, partner_data):
         """Trouve le fournisseur par nom"""
