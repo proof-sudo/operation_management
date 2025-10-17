@@ -153,14 +153,9 @@ class OdooSyncController(http.Controller):
         """Traite et crée la commande d'achat dans Odoo 18"""
         try:
             # Rechercher le fournisseur
-            partner_id = self._find_or_create_partner(data.get('partner_id'))
+            partner_id = self._find_partner(data.get('partner_id'))
             if not partner_id:
                 return {"status": "error", "message": "Fournisseur non trouvé"}
-
-            # Rechercher la société
-            company_id = self._find_company(data.get('company_id'))
-            if not company_id:
-                return {"status": "error", "message": "Société non trouvée"}
 
             # Vérifier si la commande existe déjà
             existing_order = request.env['purchase.order'].sudo().search([
@@ -180,7 +175,7 @@ class OdooSyncController(http.Controller):
                 'currency_id': self._find_currency(data.get('currency_id')),
                 'notes': data.get('notes', ''),
                 'origin': f"Sync Odoo11: {data.get('name')}",
-                'company_id': company_id,
+                'company_id': request.env.company.id,
             }
 
             # Créer la commande
@@ -207,53 +202,39 @@ class OdooSyncController(http.Controller):
             _logger.exception("Erreur traitement PurchaseOrder: %s", str(e))
             return {"status": "error", "message": f"Erreur traitement: {str(e)}"}
 
-    def _find_or_create_partner(self, partner_data):
-        """Trouve ou crée le fournisseur"""
+    def _find_partner(self, partner_data):
+        """Trouve le fournisseur par nom"""
         if not partner_data:
             return False
 
-        partner_id = partner_data[0] if isinstance(partner_data, list) else partner_data
-        partner_name = partner_data[1] if isinstance(partner_data, list) else "Fournisseur Inconnu"
+        partner_name = partner_data[1] if isinstance(partner_data, list) else str(partner_data)
 
-        # Rechercher par ID original ou par nom
+        # Rechercher par nom exact
         partner = request.env['res.partner'].sudo().search([
-            '|',
-            ('ref_odoo11', '=', partner_id),
-            ('name', '=', partner_name)
+            ('name', '=ilike', partner_name)
         ], limit=1)
 
         if not partner:
             # Créer le fournisseur
             partner = request.env['res.partner'].sudo().create({
                 'name': partner_name,
-                'ref_odoo11': partner_id,
                 'company_type': 'company',
                 'supplier_rank': 1,
             })
-            _logger.info("Nouveau fournisseur créé: %s (Ref Odoo11: %s)", partner_name, partner_id)
+            _logger.info("Nouveau fournisseur créé: %s", partner_name)
 
         return partner.id
 
-    def _find_company(self, company_data):
-        """Trouve la société"""
-        if not company_data:
-            return request.env.company.id
-
-        company_name = company_data[1] if isinstance(company_data, list) else company_data
-        company = request.env['res.company'].sudo().search([
-            ('name', '=', company_name)
-        ], limit=1)
-
-        return company.id if company else request.env.company.id
-
     def _find_currency(self, currency_data):
-        """Trouve la devise"""
+        """Trouve la devise par nom"""
         if not currency_data:
             return request.env.company.currency_id.id
 
-        currency_name = currency_data[1] if isinstance(currency_data, list) else currency_data
+        currency_name = currency_data[1] if isinstance(currency_data, list) else str(currency_data)
+        
+        # Rechercher la devise
         currency = request.env['res.currency'].sudo().search([
-            ('name', '=', currency_name)
+            ('name', '=ilike', currency_name)
         ], limit=1)
 
         return currency.id if currency else request.env.company.currency_id.id
@@ -282,9 +263,10 @@ class OdooSyncController(http.Controller):
             if taxes_data and isinstance(taxes_data, list) and len(taxes_data) > 2:
                 tax_ids = taxes_data[2]  # Récupérer les IDs de taxes
                 if tax_ids:
+                    # Chercher les taxes par nom (approximatif)
                     taxes = request.env['account.tax'].sudo().search([
-                        ('ref_odoo11', 'in', tax_ids)
-                    ])
+                        ('type_tax_use', '=', 'purchase')
+                    ], limit=1)
                     if taxes:
                         order_line.taxes_id = taxes
 
@@ -295,7 +277,7 @@ class OdooSyncController(http.Controller):
             return False
 
     def _find_or_create_product(self, product_data):
-        """Trouve ou crée un produit"""
+        """Trouve ou crée un produit par nom"""
         if not product_data:
             # Retourner un produit générique si non spécifié
             generic_product = request.env['product.product'].sudo().search([
@@ -311,26 +293,22 @@ class OdooSyncController(http.Controller):
                 })
             return generic_product.id
 
-        product_id = product_data[0] if isinstance(product_data, list) else product_data
-        product_name = product_data[1] if isinstance(product_data, list) else "Produit Inconnu"
+        product_name = product_data[1] if isinstance(product_data, list) else str(product_data)
 
-        # Rechercher par ID original ou par nom
+        # Rechercher par nom
         product = request.env['product.product'].sudo().search([
-            '|',
-            ('ref_odoo11', '=', product_id),
-            ('name', '=', product_name)
+            ('name', '=ilike', product_name)
         ], limit=1)
 
         if not product:
             # Créer le produit
             product = request.env['product.product'].sudo().create({
                 'name': product_name,
-                'ref_odoo11': product_id,
                 'type': 'service',  # ou 'product' selon le besoin
                 'purchase_ok': True,
                 'sale_ok': False,
-                'default_code': f"ODOO11_{product_id}",
+                'default_code': f"PROD_{product_name[:20]}",
             })
-            _logger.info("Nouveau produit créé: %s (Ref Odoo11: %s)", product_name, product_id)
+            _logger.info("Nouveau produit créé: %s", product_name)
 
         return product.id
