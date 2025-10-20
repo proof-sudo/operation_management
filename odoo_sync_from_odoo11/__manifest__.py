@@ -15,7 +15,7 @@
     'category': 'Sales',
     'website': 'https://yourcompany.com',
     'depends': ['base', 'sale', 'stock', 'account','sale_management',  # Pour hériter de sale.order
-        'project','purchase',],  # Pour hériter de account.move
+        'project','purchase','res',],  # Pour hériter de account.move
     'license': 'LGPL-3',
     'data': [
         'security/ir.model.access.csv',
@@ -24,6 +24,7 @@
         'views/project_list_view_inherit.xml',
         'views/create_project_wizard_view.xml',
         'views/purchase_order_view.xml',
+        'views/res_partner_view.xml',
         
         # ici on pourrait ajouter des vues ou des sécurités si nécessaire
     ],
