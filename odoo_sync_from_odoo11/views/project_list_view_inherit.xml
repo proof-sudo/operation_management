@@ -29,6 +29,10 @@
                 <!-- Section Circuit et Priorité -->
                 <field name="circuit" string="Circuit" optional="show"/>
                 <field name="priorite" string="Priorité" optional="show"/>
+                <field name="bu" string="BU" optional="show"/>
+                <field name="cat_recurrent" string="Cat Recurrent" optional="hide"/>
+
+
                 
                 <!-- Section Dates -->
                 <field name="date_in" string="Date IN" optional="show"/>
@@ -38,6 +42,10 @@
                 <field name="last_notice_date" string="Last Notice" optional="show"/>
                 
                 <!-- Section Financière -->
+                <field name="cas_build"  string="CAS BUILD" optional="hide"/>
+                <field name="cas_run"  string="CAS RUN" optional="hide"/>
+                <field name="cas_train"  string="CAS TRAIN" optional="hide"/>
+                <field name="cas_sw"  string="CAS SW" optional="hide"/>
                 <field name="cas" string="CAS" optional="show"/>
                 <field name="revenue_type" string="Type Revenue" optional="show"/>
                 <field name="cafy" string="CAF YTD" optional="show"/>
