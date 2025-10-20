@@ -46,6 +46,7 @@
                 <field name="cas_run"  string="CAS RUN" optional="hide"/>
                 <field name="cas_train"  string="CAS TRAIN" optional="hide"/>
                 <field name="cas_sw"  string="CAS SW" optional="hide"/>
+                <field name="cas_hw"  string="CAS HW" optional="hide"/>
                 <field name="cas" string="CAS" optional="show"/>
                 <field name="revenue_type" string="Type Revenue" optional="show"/>
                 <field name="cafy" string="CAF YTD" optional="show"/>
