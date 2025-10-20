@@ -93,17 +93,17 @@ class ProjectInherit(models.Model):
     cas_train =fields.Float(string='CAS TRAIN', default=0.0)
     cas_sw =fields.Float(string='CAS SW', default=0.0)
     cas_hw =fields.Float(string='CAS HW', default=0.0)
-    secteur= fields.Char(string='Secteur', compute='_compute_secteur', store=True)
+    # secteur= fields.Char(string='Secteur', compute='_compute_secteur', store=True)
     
     
     
-    @api.depends('bc.partner_id')
-    def _compute_secteur(self):
-        for project in self:
-            if project.bc and project.bc.partner_id:
-                project.secteur = project.bc.partner_id.secteur
-            else:
-                project.secteur = ''
+    # @api.depends('bc.partner_id')
+    # def _compute_secteur(self):
+    #     for project in self:
+    #         if project.bc and project.bc.partner_id:
+    #             project.secteur = project.bc.partner_id.secteur
+    #         else:
+    #             project.secteur = ''
 
     @api.depends('bc')
     def _compute_cas(self):
