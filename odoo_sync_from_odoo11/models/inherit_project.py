@@ -26,7 +26,7 @@ class ProjectInherit(models.Model):
     ], string='Domaine', default='others')
     bc = fields.Many2one('sale.order', string='Commande liée', help="Commande liée à ce projet")
     am = fields.Many2one('res.users', string='Account Manager', related='bc.user_id')
-    commercial =fields.Char(string='Commercial', related='am', store=True)
+    commercial =fields.Char(string='Commercial', related='bc.user_id', store=True)
     presales = fields.Many2one('res.users', string='Presales')
     date_in = fields.Date(string='Date IN', compute='_compute_creation_date_only',store=True )
     pays = fields.Many2one('res.country', string='Pays', related='bc.partner_id.country_id',store=True )
