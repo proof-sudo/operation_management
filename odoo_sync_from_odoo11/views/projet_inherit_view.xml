@@ -39,6 +39,7 @@
                             <field name="percentcaftotal" /> -->
                             <field name="priorite" />
                             <field name="risque" />
+                            <field name="etat_projet" />
                             <field name="last_notice_date" />
                             <field name="contratstartdate" />
                             <field name="contratenddate" />

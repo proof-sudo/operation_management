@@ -26,9 +26,11 @@ class ProjectInherit(models.Model):
     ], string='Domaine', default='others')
     bc = fields.Many2one('sale.order', string='Commande liée', help="Commande liée à ce projet")
     am = fields.Many2one('res.users', string='Account Manager', related='bc.user_id')
+    commercial =fields.Char(string='Commercial', related='am', store=True)
     presales = fields.Many2one('res.users', string='Presales')
-    date_in = fields.Date(string='Date IN', compute='_compute_creation_date_only')
-    pays = fields.Many2one('res.country', string='Pays', related='bc.partner_id.country_id' )
+    date_in = fields.Date(string='Date IN', compute='_compute_creation_date_only',store=True )
+    pays = fields.Many2one('res.country', string='Pays', related='bc.partner_id.country_id',store=True )
+   
     circuit = fields.Selection(string='Circuit', selection=[('fast', 'Fast Track'), ('normal', 'Normal')], default='normal')
     sc = fields.Many2one('res.users', string='Solutions consultant')
     cas = fields.Float(string='CAS', default=0.0)
@@ -49,7 +51,38 @@ class ProjectInherit(models.Model):
     contratenddate = fields.Date(string='Contrat End Date')
     delaicontractuel = fields.Date(string='Délai Contractuel')
     priorite = fields.Selection([('urgent', 'Urgent'), ('normal', 'Normal'), ('basse', 'Basse')], string='Priorité', default='normal')
-
+    etat_projet = fields.Selection([
+        ('cancelled', '0-Annulé'),
+        ('dossier_indisponible', '6-Dossier indisponible'),
+        ('suspendu', '9-Suspendu'),
+        ('draft', '6-Draft'),
+        ('non_demarre', '1-Non démarré'),
+        ('en_cours_bloque', '3-En cours - Bloqué'),
+        ('en_cours_provisionning', '3-En cours - Provisionning'),
+        ('en_cours_production', '3-En cours - Production'),
+        ('en_cours_expedition', '3-En cours - Expédition'),
+        ('en_cours_dedouanement', '3-En cours - Dedouanement'),
+        ('en_cours_atelier_technique', '3-En cours - Atelier technique'),
+        ('en_cours_deploiement', '3-En cours - Deploiement'),
+        ('en_cours_formation', '3-En cours - Formation'),
+        ('en_cours_kickoff_client', '3-En cours - Kick off client'),
+        ('en_cours_standby_client', '3-En cours - Standby client'),
+        ('en_cours_standby_technical_issue', '3-En cours - Standby technical issue'),
+        ('en_cours_attente_prerequis', '3-En cours - Attente prérequis'),
+        ('en_cours_tests_recette', '3-En cours - Tests et recette'),
+        ('en_cours_rli', '3-En cours - RLI'),
+        ('termine_attente_pv_bl', '4-Terminé - Attente PV/BL'),
+        ('termine_levee_reserve', '4-Terminé - Lévée de reserve'),
+        ('termine_pv_bl_signe', '4-Terminé - PV/BL signé'),
+        ('facture_attente_df', '5-Facturé - Attente DF'),
+        ('facture_attente_livraison', '5-Facturé - Attente livraison'),
+        ('facture_prestations_en_cours', '5-Facturé - Prestations en cours'),
+        ('suivi_contrat_licence', '8-Suivi - Contrat licence'),
+        ('suivi_contrat_mixte', '8-Suivi - Contrat Mixte'),
+        ('suivi_contrat_services', '8-Suivi - Contrat de Services'),
+        ('cloture', '7-Cloturé'),
+    ], string='État projet', default='non_demarre', help='État détaillé du projet')
+    
     bu  = fields.Selection([('ict', 'ICT'), 
                             ('cloud', 'CLOUD'),
                             ('cybersecurity', 'CYBERSECURITY'),
@@ -61,7 +94,15 @@ class ProjectInherit(models.Model):
     cas_train =fields.Float(string='CAS TRAIN', default=0.0)
     cas_sw =fields.Float(string='CAS SW', default=0.0)
     cas_hw =fields.Float(string='CAS HW', default=0.0)
-
+    secteur= fields.Char(string='Secteur', compute='_compute_secteur', store=True)
+    
+    @api.depends('bc.partner_id')
+    def _compute_secteur(self):
+        for project in self:
+            if project.bc and project.bc.partner_id:
+                project.secteur = project.bc.partner_id.secteur
+            else:
+                project.secteur = ''
 
     @api.depends('bc')
     def _compute_cas(self):
