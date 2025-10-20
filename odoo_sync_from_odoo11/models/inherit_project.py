@@ -30,7 +30,7 @@ class ProjectInherit(models.Model):
     date_in = fields.Date(string='Date IN', compute='_compute_creation_date_only', store=True, readonly=True)
     pays = fields.Many2one('res.country', string='Pays', related='bc.partner_id.country_id', store=True, readonly=True)
     circuit = fields.Selection(string='Circuit', selection=[('fast', 'Fast Track'), ('normal', 'Normal')], default='normal')
-    sc = fields.Many2one('res.users', string='SC')
+    sc = fields.Many2one('res.users', string='Solutions consultant')
     cas = fields.Float(string='CAS', default=0.0)
     revenue_type = fields.Selection([
         ('oneshot', 'One Shot'),

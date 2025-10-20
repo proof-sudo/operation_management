@@ -36,6 +36,9 @@
                 <field name="total_invoiced_amount" widget="monetary" 
                        options="{'currency_field': 'currency_id'}"
                        string="Montant Facturé"/>
+                <field name="total_submit" widget="monetary" 
+                       options="{'currency_field': 'currency_id'}"
+                       string="Montant en Attente de validation"/>
                 <field name="total_backlog" widget="monetary" 
                        options="{'currency_field': 'currency_id'}"
                        string="Backlog Restant"/>

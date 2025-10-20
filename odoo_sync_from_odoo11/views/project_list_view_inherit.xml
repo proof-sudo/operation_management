@@ -21,7 +21,7 @@
                 <!-- Section Contacts -->
                 <field name="am" string="AM" optional="show"/>
                 <field name="presales" string="Presales" optional="show"/>
-                <field name="sc" string="SC" optional="show"/>
+                <field name="sc" string="Solutions consultant" optional="show"/>
                 
                 <!-- Section Localisation -->
                 <field name="pays" string="Pays" optional="show"/>

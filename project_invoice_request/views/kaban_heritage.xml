@@ -17,6 +17,11 @@
                                options="{'currency_field': 'currency_id'}"/>
                     </div>
                     <div class="o_label">Facturé</div>
+                    <div class="o_value" t-else="">
+                        <field name="total_submit" widget="monetary" 
+                               options="{'currency_field': 'currency_id'}"/>
+                    </div>
+                    <div class="o_label">En attente</div>
                 </div>
                 
                 <!-- Nombre de demandes avec lien cliquable -->

@@ -33,6 +33,12 @@ class Project(models.Model):
         currency_field='currency_id',
         help="Montant backlog pour ce projet (basé sur les commandes liées)"
     )
+    total_submit = fields.Monetary(
+        string="En attente de validation",
+        compute='_compute_total_submitted',
+        currency_field='currency_id',
+        help="Montant soumis en attente de valodation"
+    )
     
     currency_id = fields.Many2one(
         'res.currency',
@@ -70,6 +76,19 @@ class Project(models.Model):
             # Calcul simple : somme des montants totaux des demandes
             total = sum(approved_requests.mapped('total_amount'))
             project.total_invoiced_amount = total
+            
+    def _compute_total_submitted(self):
+        """Calcule le montant total facturé basé sur project.invoice.request"""
+        for project in self:
+            # Récupérer toutes les demandes approuvées pour ce projet
+            approved_requests = self.env['project.invoice.request'].search([
+                ('project_id', '=', project.id),
+                ('state', '=', 'submitted')
+            ])
+            
+            # Calcul simple : somme des montants totaux des demandes
+            total = sum(approved_requests.mapped('total_amount'))
+            project.total_submit = total
 
     @api.depends('invoice_request_ids')
     def _compute_invoice_request_count(self):
