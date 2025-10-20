@@ -60,6 +60,7 @@ class ProjectInherit(models.Model):
     cas_run =fields.Float(string='CAS RUN', default=0.0)
     cas_train =fields.Float(string='CAS TRAIN', default=0.0)
     cas_sw =fields.Float(string='CAS SW', default=0.0)
+    cas_hw =fields.Float(string='CAS HW', default=0.0)
 
 
     @api.depends('bc')

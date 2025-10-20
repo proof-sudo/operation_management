@@ -28,6 +28,7 @@
                             <field name="cat_recurrent" />
                             <field name="cas_build" />
                             <field name="cas_run" />
+                            <field name="cas_hw" />
                             
                             <!-- <field name="cafy" />
                             <field name="rafytd" />
