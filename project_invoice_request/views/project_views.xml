@@ -16,7 +16,7 @@
                             />
                     
                     <!-- Smart button pour voir les demandes -->
-                    <button class="oe_stat_button" 
+                    <!-- <button class="oe_stat_button" 
                             name="action_view_invoice_requests" 
                             type="object"
                             icon="fa-file-text-o">
@@ -27,7 +27,7 @@
                             </span>
                             <span class="o_stat_text">Demandes</span>
                         </div>
-                    </button>
+                    </button> -->
                 </div>
             </xpath>
             
