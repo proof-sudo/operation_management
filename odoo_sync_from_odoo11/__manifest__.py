@@ -15,7 +15,7 @@
     'category': 'Sales',
     'website': 'https://yourcompany.com',
     'depends': ['base', 'sale', 'stock', 'account','sale_management',  # Pour hériter de sale.order
-        'project','purchase','res',],  # Pour hériter de account.move
+        'project','purchase',],  # Pour hériter de account.move
     'license': 'LGPL-3',
     'data': [
         'security/ir.model.access.csv',
