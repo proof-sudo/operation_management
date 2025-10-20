@@ -25,7 +25,7 @@ class ProjectInherit(models.Model):
         ('none', 'None')
     ], string='Domaine', default='others')
     bc = fields.Many2one('sale.order', string='Commande liée', help="Commande liée à ce projet")
-    am = fields.Many2one('res.users', string='AM', related='bc.user_id', store=True, readonly=True)
+    am = fields.Many2one('res.users', string='AM', related='bc.user_id', store=True)
     presales = fields.Many2one('res.users', string='Presales')
     date_in = fields.Date(string='Date IN', compute='_compute_creation_date_only', store=True, readonly=True)
     pays = fields.Many2one('res.country', string='Pays', related='bc.partner_id.country_id', store=True, readonly=True)
