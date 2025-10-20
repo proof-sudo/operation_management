@@ -16,7 +16,7 @@
                 </xpath>
 
                 <xpath expr="//field[@name='project_id']" position="before">
-                    <field name="date_enlevement" string="Date d'Enlèvement"/>
+                    <field name="eta_constructeur" string="Date d'Enlèvement"/>
                 </xpath>
                 
                 
@@ -31,7 +31,7 @@
             <field name="inherit_id" ref="purchase.purchase_order_tree"/>
             <field name="arch" type="xml">
                 <field name="partner_ref" position="after">
-                   <field name="date_enlevement" string="Date d'Enlèvement" optional="show"/>
+                   <field name="eta_constructeur" string="ETA Constructeur" optional="show"/>
                     <field name="dossier_id" string="Dossier" optional="show"/>
                     <field name="statut_livraison" string="Statut de Livraison" optional="show"/>
                 </field>
@@ -65,27 +65,27 @@
                     
                     <filter name="statut_placee" string="Placée" 
                             domain="[('statut_livraison', '=', 'placee')]"/>
-                    <filter name="enlevement_aujourdhui" string="Enlèvement Aujourd'hui" 
-                            domain="[('date_enlevement', '>=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date_enlevement', '&lt;', (context_today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter name="etaconstructeur_aujourdhui" string="ETA Constructeur Aujourd'hui" 
+                            domain="[('eta_constructeur', '>=', context_today().strftime('%Y-%m-%d 00:00:00')), ('eta_constructeur', '&lt;', (context_today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00'))]"/>
                     
-                    <filter name="enlevement_semaine" string="Enlèvement Cette Semaine" 
-                            domain="[('date_enlevement', '>=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date_enlevement', '&lt;', (context_today() + datetime.timedelta(days=7)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter name="etaconstructeur_semaine" string="ETA Constructeur Cette Semaine" 
+                            domain="[('eta_constructeur', '>=', context_today().strftime('%Y-%m-%d 00:00:00')), ('eta_constructeur', '&lt;', (context_today() + datetime.timedelta(days=7)).strftime('%Y-%m-%d 00:00:00'))]"/>
                     
-                    <filter name="enlevement_passe" string="Enlèvement Passé" 
-                            domain="[('date_enlevement', '&lt;', context_today().strftime('%Y-%m-%d 00:00:00'))]"/>
-                    <filter name="enlevement_futur" string="Enlèvement Futur" 
-                            domain="[('date_enlevement', '&gt;', context_today().strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter name="etaconstructeur_passe" string="ETAConstructeur Passé" 
+                            domain="[('eta_constructeur', '&lt;', context_today().strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter name="etaconstructeur_futur" string="ETA Constructeur Futur" 
+                            domain="[('eta_constructeur', '&gt;', context_today().strftime('%Y-%m-%d 00:00:00'))]"/>
                     
-                    <filter name="sans_enlevement" string="Sans Date d'Enlèvement" 
-                            domain="[('date_enlevement', '=', False)]"/>
-                    <filter name="urgent" string="⚠️  Urgent - Enlèvement Aujourd'hui" 
-                            domain="[('date_enlevement', '>=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date_enlevement', '&lt;', (context_today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00')), ('statut_livraison', 'in', ['en_attente', 'placee'])]"/>
+                    <filter name="sans_etaconstructeur" string="Sans ETA Constructeur" 
+                            domain="[('eta_constructeur', '=', False)]"/>
+                    <filter name="urgent" string="⚠️  Urgent - ETA Constructeur Aujourd'hui" 
+                            domain="[('eta_constructeur', '>=', context_today().strftime('%Y-%m-%d 00:00:00')), ('eta_constructeur', '&lt;', (context_today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00')), ('statut_livraison', 'in', ['en_attente', 'placee'])]"/>
                     
                     <filter name="en_retard" string="⏰  En Retard" 
-                            domain="[('date_enlevement', '&lt;', context_today().strftime('%Y-%m-%d 00:00:00')), ('statut_livraison', 'in', ['en_attente', 'placee'])]"/>
+                            domain="[('eta_constructeur', '&lt;', context_today().strftime('%Y-%m-%d 00:00:00')), ('statut_livraison', 'in', ['en_attente', 'placee'])]"/>
                     
                     <filter name="a_livrer" string="📦  À Livrer Cette Semaine" 
-                            domain="[('date_enlevement', '>=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date_enlevement', '&lt;', (context_today() + datetime.timedelta(days=7)).strftime('%Y-%m-%d 00:00:00')), ('statut_livraison', 'in', ['en_attente', 'placee'])]"/>
+                            domain="[('eta_constructeur', '>=', context_today().strftime('%Y-%m-%d 00:00:00')), ('eta_constructeur', '&lt;', (context_today() + datetime.timedelta(days=7)).strftime('%Y-%m-%d 00:00:00')), ('statut_livraison', 'in', ['en_attente', 'placee'])]"/>
                             <separator/>
                     <filter name="groupby_dossier" string="Par Dossier" 
                             context="{'group_by': 'dossier_id'}"/>
@@ -93,8 +93,8 @@
                     <filter name="groupby_statut_livraison" string="Par Statut Livraison" 
                             context="{'group_by': 'statut_livraison'}"/>
                     
-                    <filter name="groupby_date_enlevement" string="Par Date Enlèvement" 
-                            context="{'group_by': 'date_enlevement:day'}"/>
+                    <filter name="groupby_eta_constructeur" string="Par Date Enlèvement" 
+                            context="{'group_by': 'eta_constructeur:day'}"/>
                     
                     <filter name="groupby_fournisseur" string="Par Fournisseur" 
                             context="{'group_by': 'partner_id'}"/>

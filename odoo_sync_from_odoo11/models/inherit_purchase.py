@@ -4,7 +4,7 @@ class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
     dossier_id = fields.Char(string='Dossier', copy=False)
     # date_previsionnelle_livraison = fields.Datetime(string='Date Prévisionnelle de Livraison')
-    date_enlevement = fields.Datetime(string='Date d\'Enlèvement ')
+    eta_constructeur = fields.Datetime(string='ETA Constructeur ')
     instructions_speciales = fields.Text(string='Instructions Spéciales')
     statut_livraison = fields.Selection([
         ('en_attente', 'En Attente'),
