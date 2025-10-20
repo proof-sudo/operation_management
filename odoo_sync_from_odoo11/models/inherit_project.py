@@ -49,8 +49,19 @@ class ProjectInherit(models.Model):
     contratenddate = fields.Date(string='Contrat End Date')
     delaicontractuel = fields.Date(string='Délai Contractuel')
     priorite = fields.Selection([('urgent', 'Urgent'), ('normal', 'Normal'), ('basse', 'Basse')], string='Priorité', default='normal')
-    
-    
+
+    bu  = fields.Selection([('ict', 'ICT'), 
+                            ('cloud', 'CLOUD'),
+                            ('cybersecurity', 'CYBERSECURITY'),
+                            ('formation', 'FORMATION'),
+                            ('security', 'SECURITY')], string='BU')
+    cat_recurrent = fields.Char(string='Cat Recurrent')
+    cas_build =fields.Float(string='CAS BUILD', default=0.0)
+    cas_run =fields.Float(string='CAS RUN', default=0.0)
+    cas_train =fields.Float(string='CAS TRAIN', default=0.0)
+    cas_sw =fields.Float(string='CAS SW', default=0.0)
+
+
     @api.depends('bc')
     def _compute_cas(self):
         for project in self:

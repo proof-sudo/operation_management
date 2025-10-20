@@ -24,7 +24,11 @@
                         </group>
                         <group >
                             <field name="revenue_type" />
-                            <field name="circuit" />
+                            <field name="bu" />
+                            <field name="cat_recurrent" />
+                            <field name="cas_build" />
+                            <field name="cas_run" />
+                            
                             <!-- <field name="cafy" />
                             <field name="rafytd" />
                             <field name="cafypercent" />
