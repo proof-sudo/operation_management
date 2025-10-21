@@ -47,23 +47,19 @@ action = env['ir.actions.act_window']._for_xml_id('odoo_sync_from_odoo11.action_
                         </div>
                     </group>
                     
-                    <!-- Résultats - Version simplifiée sans progressbar -->
+                    <!-- Résultats -->
                     <group string="Résultats de l'import" invisible="not success_count and not error_count">
-                        <div class="row">
-                            <div class="col-6">
-                                <label string="Projets traités avec succès"/>
-                                <field name="success_count" class="text-success" readonly="1"/>
-                            </div>
-                            <div class="col-6">
-                                <label string="Erreurs rencontrées"/>
-                                <field name="error_count" class="text-danger" readonly="1"/>
-                            </div>
-                        </div>
+                        <group string="Statistiques">
+                            <group>
+                                <field name="success_count" string="Projets traités avec succès" readonly="1"/>
+                                <field name="error_count" string="Erreurs rencontrées" readonly="1"/>
+                            </group>
+                        </group>
                     </group>
                     
                     <!-- Journal -->
                     <group string="Détails de l'import" invisible="not import_log">
-                        <field name="import_log" nolabel="1" widget="textarea" style="height: 300px;" readonly="1"/>
+                        <field name="import_log" string="Journal d'exécution" widget="textarea" style="height: 300px;" readonly="1"/>
                     </group>
                 </sheet>
                 
