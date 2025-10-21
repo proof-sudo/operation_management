@@ -103,10 +103,8 @@ class ProjectImportWizard(models.TransientModel):
                         log_messages.append(f"⚠️ Ligne {row_idx}: Nom manquant, ligne ignorée")
                         continue
 
-                    # Rechercher le projet existant
-                    project = self.env['project.project'].search([
-                        ('name', '=', project_name)
-                    ], limit=1)
+                    # CORRECTION : Recherche simplifiée du projet
+                    project = self._search_project_safe(project_name)
                     
                     if project and self.update_existing:
                         project.write(project_vals)
@@ -123,6 +121,8 @@ class ProjectImportWizard(models.TransientModel):
                     error_count += 1
                     log_messages.append(f"✗ Ligne {row_idx}: Erreur - {str(e)}")
                     _logger.error(f"Erreur ligne {row_idx}: {str(e)}")
+                    # CORRECTION : Rollback pour cette ligne seulement
+                    self.env.cr.rollback()
 
             # Résumé final
             log_messages.append(f"\n=== RÉSUMÉ ===")
@@ -148,7 +148,32 @@ class ProjectImportWizard(models.TransientModel):
 
         except Exception as e:
             _logger.error(f"Erreur générale import: {str(e)}")
+            self.env.cr.rollback()
             raise UserError(_(f"Erreur lors de l'import: {str(e)}"))
+
+    def _search_project_safe(self, project_name):
+        """Recherche un projet de manière sécurisée sans causer d'erreur SQL"""
+        try:
+            # Méthode 1: Recherche exacte simple
+            project = self.env['project.project'].search([
+                ('active', '=', True),
+                ('name', '=', project_name)
+            ], limit=1)
+            
+            if project:
+                return project
+                
+            # Méthode 2: Recherche avec ilike si pas trouvé
+            project = self.env['project.project'].search([
+                ('active', '=', True),
+                ('name', 'ilike', project_name)
+            ], limit=1)
+            
+            return project
+            
+        except Exception as e:
+            _logger.error(f"Erreur recherche projet '{project_name}': {str(e)}")
+            return None
 
     def _create_column_mapping(self, headers):
         """Crée le mapping entre les colonnes Excel et les champs Odoo"""
@@ -290,7 +315,7 @@ class ProjectImportWizard(models.TransientModel):
                 if cell_value is not None:
                     cell_value_str = str(cell_value).strip()
                     if cell_value_str:
-                        record, created = self._get_or_create_record(
+                        record, created = self._get_or_create_record_safe(
                             model, cell_value_str, row_num, field_label
                         )
                         if record:
@@ -305,8 +330,8 @@ class ProjectImportWizard(models.TransientModel):
 
         return vals, created_counts
 
-    def _get_or_create_record(self, model, search_value, row_num, field_label):
-        """Trouve ou crée un enregistrement"""
+    def _get_or_create_record_safe(self, model, search_value, row_num, field_label):
+        """Trouve ou crée un enregistrement de manière sécurisée"""
         try:
             # Recherche d'abord l'enregistrement existant
             record = None
