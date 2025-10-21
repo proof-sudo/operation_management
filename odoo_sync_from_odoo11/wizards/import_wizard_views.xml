@@ -69,7 +69,7 @@ action = env['ir.actions.act_window']._for_xml_id('odoo_sync_from_odoo11.action_
                 </sheet>
                 
                 <footer>
-                    <button name="action_import" string="Lancer l'import" type="object" class="btn-primary"/>
+                    <button name="action_import_projects" string="Lancer l'import" type="object" class="btn-primary"/> 
                     <button string="Fermer" class="btn-secondary" special="cancel"/>
                 </footer>
             </form>

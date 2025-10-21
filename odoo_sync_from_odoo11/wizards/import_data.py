@@ -4,7 +4,7 @@ import base64
 import io
 import logging
 from datetime import datetime
-import re # Ajout du module de regex
+import re 
 
 _logger = logging.getLogger(__name__)
 
@@ -18,27 +18,27 @@ except ImportError:
 COLUMN_MAPPING = {
     'Nom': 'name',
     'PM': 'user_id', # Project Manager (res.users)
-    'AM': 'account_manager_id', # Account Manager (res.users) - Assurez-vous que ce champ existe sur project.project
-    'Presales': 'presales_id', # Presales (res.users) - Assurez-vous que ce champ existe sur project.project
+    'AM': 'account_manager_id', 
+    'Presales': 'presales_id', 
     'Nature': 'nature', # Sélection
     'BU': 'bu', # Sélection
     'Domaine': 'domaine', # Sélection
-    'Revenus': 'revenue_type', # Sélection (basé sur 'revenus' de l'analyse précédente)
-    'Cat Recurrent': 'recurrent_category', # Assurez-vous que ce champ existe sur project.project
+    'Revenus': 'revenue_type', 
+    'Cat Recurrent': 'recurrent_category', 
     'Date IN': 'date_start',
-    'Pays': 'country_id', # res.country
-    'Customer': 'partner_id', # res.partner
-    'Secteur': 'partner_category_id', # res.partner.category
+    'Pays': 'country_id', 
+    'Customer': 'partner_id', 
+    'Secteur': 'partner_category_ids', # Renommé pour correspondre au Many2many standard
     'Description du Projet': 'description',
     'Circuit': 'circuit', # Sélection
-    'SC': 'cost_sc', # Coût SC - Assurez-vous que ces champs existent et sont de type numérique
+    'SC': 'cost_sc', 
     'CAS Build': 'cost_cas_build',
     'CAS Run': 'cost_cas_run',
     'CAS Train': 'cost_cas_train',
     'CAS Sw': 'cost_cas_sw',
     'CAS Hw': 'cost_cas_hw',
     'CAS': 'cost_cas_total',
-    'Statut': 'etat_projet', # Sélection
+    'Statut': 'etat_projet', 
     'Update Date': 'date_update',
 }
 
@@ -62,7 +62,7 @@ class ProjectImportWizard(models.TransientModel):
         default=True
     )
     create_missing_records = fields.Boolean(
-        string='Créer les enregistrements manquants (utilisateurs, clients, pays, etc.)',
+        string='Créer les enregistrements manquants (utilisateurs, clients, etc.)',
         default=True,
         help="Si activé, crée automatiquement les utilisateurs, clients et autres enregistrements manquants"
     )
@@ -70,11 +70,17 @@ class ProjectImportWizard(models.TransientModel):
     import_log = fields.Text(string="Journal d'import", readonly=True)
     success_count = fields.Integer(string='Projets créés/mis à jour', readonly=True)
     error_count = fields.Integer(string='Erreurs', readonly=True)
+    
+    # CHAMPS AJOUTÉS POUR CORRESPONDRE À LA VUE XML DE L'UTILISATEUR
+    created_users_count = fields.Integer(string='Utilisateurs créés', readonly=True)
+    created_partners_count = fields.Integer(string='Clients créés', readonly=True)
+    created_categories_count = fields.Integer(string='Catégories créées', readonly=True)
+    # FIN DES AJOUTS
 
-    # --- NOUVELLES METHODES DE GESTION DES ENREGISTREMENTS EXTERNES ---
+    # --- MÉTHODES DE GESTION DES ENREGISTREMENTS EXTERNES ---
     
     def _find_or_create_user(self, name):
-        """ Recherche ou crée un utilisateur, en assurant l'unicité du login. """
+        """ Recherche ou crée un utilisateur, en assurant l'unicité du login et en évitant 'default'. """
         if not self.create_missing_records:
             return False
             
@@ -92,7 +98,7 @@ class ProjectImportWizard(models.TransientModel):
 
         # 2. Créer l'utilisateur (avec gestion de login unique)
         try:
-            # Création du login de base (ex: Fatim KEITA -> fatim.keita)
+            # Nettoyage et création du login de base (ex: Fatim KEITA -> fatim.keita)
             login_base = re.sub(r'[^a-zA-Z0-9\.]', '', name.lower().replace(' ', '.'))
             if not login_base:
                  login_base = 'imported.user' 
@@ -111,11 +117,11 @@ class ProjectImportWizard(models.TransientModel):
                 'email': f'{login_candidate}@{self.env.company.partner_id.email_domain or "example.com"}',
                 'company_id': self.env.company.id,
                 'notification_type': 'email',
-                'groups_id': [(6, 0, [self.env.ref('base.group_user').id])] # Ajouter le groupe 'Utilisateur' de base
+                'groups_id': [(6, 0, [self.env.ref('base.group_user').id])]
             }
             
             new_user = User.create(user_vals)
-            _logger.info("Utilisateur créé: %s avec login: %s", name, login_candidate)
+            self.created_users_count += 1 # Incrémentation du compteur
             return new_user.id
             
         except Exception as e:
@@ -145,6 +151,7 @@ class ProjectImportWizard(models.TransientModel):
                 'is_company': True,
                 'company_type': 'company',
             })
+            self.created_partners_count += 1 # Incrémentation du compteur
             return new_partner.id
         except Exception as e:
             _logger.error("Erreur recherche/création res.partner '%s': %s", name, str(e))
@@ -163,7 +170,6 @@ class ProjectImportWizard(models.TransientModel):
         Model = self.env[model_name].sudo()
         domain = [('name', '=ilike', name)]
         
-        # Logique spécifique pour les pays
         if model_name == 'res.country':
             domain = ['|', ('name', '=ilike', name), ('code', '=ilike', name)]
             
@@ -174,6 +180,8 @@ class ProjectImportWizard(models.TransientModel):
         # Création de l'enregistrement
         try:
             new_record = Model.create({'name': name})
+            if model_name == 'res.partner.category':
+                self.created_categories_count += 1 # Incrémentation du compteur
             return new_record.id
         except Exception as e:
             _logger.error("Erreur recherche/création %s '%s': %s", model_name, name, str(e))
@@ -183,14 +191,12 @@ class ProjectImportWizard(models.TransientModel):
     # --- LOGIQUE DE MAPPING ET IMPORTATION ---
     
     def _format_value(self, field, value):
-        # ... (votre code _format_value inchangé, sauf pour la gestion des 'revenus' -> 'revenue_type') ...
-        
+        # ... (votre code de mapping inchangé) ...
         if value is None:
             return None
             
         value = str(value).strip().lower()
 
-        # Mappings des champs de sélection
         selection_mapping = {
             'nature': {
                 'livraison': 'livraison',
@@ -205,7 +211,7 @@ class ProjectImportWizard(models.TransientModel):
                 'formation': 'formation',
                 'security': 'security',
             },
-            'revenue_type': { # Utilisé 'revenue_type' pour correspondre au champ Odoo, mappé à 'Revenus' dans le fichier
+            'revenue_type': { 
                 'recurrent': 'recurrent',
                 'one shot': 'oneshot',
                 'oneshot': 'oneshot',
@@ -214,7 +220,7 @@ class ProjectImportWizard(models.TransientModel):
                 'fast track': 'fast_track',
                 'normal': 'normal',
             },
-            'etat_projet': { # Mappage de Statut
+            'etat_projet': { 
                 '0-annulé': 'annule',
                 '1-non démarré': 'non_demarre',
                 '2-en cours': 'en_cours_production',
@@ -242,11 +248,10 @@ class ProjectImportWizard(models.TransientModel):
                 if value == excel_val.lower():
                     return odoo_val
         
-        # Fallback par défaut
         fallback_values = {
             'nature': 'all',
             'bu': 'ict', 
-            'domaine': 'others', # À compléter avec les valeurs réelles de Domaine (Secured IT (SEC), etc.)
+            'domaine': 'others',
             'etat_projet': 'non_demarre',
             'revenue_type': 'oneshot',
             'circuit': 'normal'
@@ -266,17 +271,20 @@ class ProjectImportWizard(models.TransientModel):
         }
 
     def action_import_projects(self):
-        """Logique principale d'importation des projets."""
+        """Logique principale d'importation des projets. (Nom de la méthode à utiliser dans le XML)"""
         self.import_log = ""
         self.success_count = 0
         self.error_count = 0
+        self.created_users_count = 0
+        self.created_partners_count = 0
+        self.created_categories_count = 0
+        
         Project = self.env['project.project'].sudo()
 
         if not openpyxl:
             raise UserError(_("Le module openpyxl n'est pas installé. Veuillez l'installer."))
 
         try:
-            # Décodage du fichier
             data = base64.b64decode(self.import_file)
             f = io.BytesIO(data)
             workbook = openpyxl.load_workbook(f)
@@ -285,35 +293,31 @@ class ProjectImportWizard(models.TransientModel):
         except Exception as e:
             raise UserError(_("Erreur lors de la lecture du fichier : %s. Assurez-vous qu'il s'agit d'un fichier .xlsx valide." % str(e)))
 
-        # 1. Extraction des en-têtes
-        headers = [cell.value for cell in sheet[1]]
+        headers = [str(cell.value).strip() if cell.value is not None else '' for cell in sheet[1]]
         
-        # Assurez-vous que l'index des colonnes correspond
-        col_indices = {header: headers.index(header) for header in headers if header in COLUMN_MAPPING}
-        if not col_indices:
-            raise UserError(_("Aucun en-tête de colonne pertinent trouvé dans le fichier."))
-
-        # 2. Itération sur les lignes de données (à partir de la ligne 2)
         for row_index, row in enumerate(sheet.iter_rows(min_row=2), start=2):
             try:
                 values = {}
                 project_name = None
+                partner_categories = []
                 
-                # 3. Construction du dictionnaire de valeurs Odoo
                 for excel_header, odoo_field in COLUMN_MAPPING.items():
-                    col_index = headers.index(excel_header) # Index 0-based
+                    if excel_header not in headers:
+                        continue 
+                        
+                    col_index = headers.index(excel_header) 
                     cell_value = row[col_index].value
                     
-                    if not cell_value:
+                    if cell_value is None or str(cell_value).strip() == '':
                         continue
                         
-                    # Gestion des champs de relation (Many2one)
+                    # Champs de relation (Many2one)
                     if odoo_field in ['user_id', 'account_manager_id', 'presales_id']:
                         user_id = self._find_or_create_user(cell_value)
                         if user_id:
                             values[odoo_field] = user_id
-                        # Sinon, le champ reste vide
                         
+                    # Champs de relation (Many2one)
                     elif odoo_field == 'partner_id':
                         partner_id = self._find_or_create_partner(cell_value)
                         if partner_id:
@@ -324,85 +328,77 @@ class ProjectImportWizard(models.TransientModel):
                         if country_id:
                             values[odoo_field] = country_id
 
-                    elif odoo_field == 'partner_category_id':
-                        # Dans Odoo, les catégories de partenaires sont Many2many. On les recherche.
+                    # Champ de Catégorie Partenaire (M2M)
+                    elif odoo_field == 'partner_category_ids':
                         category_id = self._find_or_create_misc('res.partner.category', cell_value)
-                        if category_id and values.get('partner_id'):
-                            # Assurez-vous d'avoir une méthode de gestion Many2many si vous utilisez le champ 'Secteur'
-                            values['category_id'] = [(6, 0, [category_id])]
-                            # Note: Le mappage 'partner_category_id' peut ne pas exister directement, 'category_id' est le champ standard Odoo
+                        if category_id:
+                            partner_categories.append(category_id)
                             
-                    # Gestion des champs de sélection
+                    # Champs de sélection
                     elif odoo_field in ['nature', 'bu', 'revenue_type', 'circuit', 'etat_projet', 'domaine']:
                         values[odoo_field] = self._format_value(odoo_field, cell_value)
 
-                    # Gestion des champs de date
+                    # Champs de date
                     elif odoo_field in ['date_start', 'date_update']:
                         if isinstance(cell_value, datetime):
                             values[odoo_field] = cell_value.strftime('%Y-%m-%d %H:%M:%S')
                         elif isinstance(cell_value, str):
-                             # Tentative de conversion de chaîne si openpyxl l'a raté
                              try:
                                  values[odoo_field] = datetime.strptime(cell_value.split()[0], '%Y-%m-%d').strftime('%Y-%m-%d')
                              except ValueError:
-                                 pass # Laisser le champ vide si la date est mal formatée
+                                 pass 
 
-                    # Gestion du nom (clé de recherche)
+                    # Nom du projet (clé)
                     elif odoo_field == 'name':
                         project_name = str(cell_value).strip()
                         values[odoo_field] = project_name
                         
-                    # Gestion des coûts/montants (Numérique)
+                    # Champs numériques
                     elif odoo_field.startswith('cost_'):
                         try:
-                            values[odoo_field] = float(cell_value or 0)
+                            cleaned_value = re.sub(r'[^\d\.\,]', '', str(cell_value))
+                            values[odoo_field] = float(cleaned_value.replace(',', '.') or 0)
                         except (ValueError, TypeError):
                             values[odoo_field] = 0.0
                             
-                    # Champs de description simples
-                    elif odoo_field in ['description', 'recurrent_category']:
+                    # Autres champs simples
+                    else:
                         values[odoo_field] = str(cell_value or '').strip()
 
 
-                # 4. Insertion/Mise à jour du projet
                 if not project_name:
                     raise UserError(_("Le nom du projet (colonne 'Nom') est manquant ou vide."))
 
                 existing_project = Project.search([('name', '=', project_name)], limit=1)
 
+                # Opérations sur le projet
                 if existing_project and self.update_existing:
                     existing_project.write(values)
                     self.import_log += _("Ligne %d: Projet '%s' mis à jour.\n" % (row_index, project_name))
                     self.success_count += 1
                 elif not existing_project and self.create_missing:
-                    # Odoo ajoute par défaut un 'mail_alias', qui peut échouer s'il y a un problème de transaction.
-                    # Nous utilisons un nouveau bloc de transaction pour être sûr.
                     Project.create(values)
                     self.import_log += _("Ligne %d: Projet '%s' créé.\n" % (row_index, project_name))
                     self.success_count += 1
-                elif existing_project and not self.update_existing:
-                    self.import_log += _("Ligne %d: Projet '%s' ignoré (Mise à jour non autorisée).\n" % (row_index, project_name))
-                elif not existing_project and not self.create_missing:
-                    self.import_log += _("Ligne %d: Projet '%s' ignoré (Création non autorisée).\n" % (row_index, project_name))
+                
+                # Mise à jour des catégories du partenaire après la création/mise à jour du projet
+                if partner_categories and values.get('partner_id'):
+                    partner = self.env['res.partner'].sudo().browse(values['partner_id'])
+                    # Ajoute les nouvelles catégories sans écraser les existantes
+                    current_categories = partner.category_id.ids
+                    new_categories = list(set(current_categories + partner_categories))
+                    partner.write({'category_id': [(6, 0, new_categories)]})
                 
             except Exception as e:
-                # La capture d'erreur ici est essentielle pour ne pas avorter toute la transaction Odoo.
                 self.error_count += 1
                 error_message = _("Erreur ligne %d pour projet '%s': %s" % (row_index, project_name or "N/A", str(e)))
                 _logger.error(error_message)
                 self.import_log += error_message + "\n"
                 
-                # IMPORTANT: Si une erreur SQL de transaction avortée se produit (comme dans votre log),
-                # la transaction Odoo est toujours marquée comme 'aborted'. L'erreur initiale est la cause.
-                # Cependant, en utilisant self.env['...'].sudo(), vous minimisez les problèmes de droits
-                # et l'implémentation de login unique dans _find_or_create_user devrait résoudre la cause principale.
-                
-                # Si l'erreur est critique (transaction aborted), le reste du processus sera affecté.
-                # Une bonne pratique est de logger et de continuer, en espérant que le rollback de la ligne échouée
-                # n'impacte pas les lignes suivantes, mais l'erreur 'duplicate key' est désormais gérée.
 
         self.import_log += "\n--- RÉSUMÉ ---\n"
         self.import_log += _("Total Projets importés/mis à jour: %d\n" % self.success_count)
         self.import_log += _("Total Erreurs: %d\n" % self.error_count)
+        self.import_log += _("Total Utilisateurs créés: %d\n" % self.created_users_count)
 
         return self._show_result_wizard()
