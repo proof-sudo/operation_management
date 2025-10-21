@@ -18,29 +18,31 @@ except ImportError:
 COLUMN_MAPPING = {
     'Nom': 'name',
     'PM': 'user_id', # Project Manager (res.users)
-    'AM': 'am', # CORRECTION 1: Confirme l'utilisation de 'am'
-    'Presales': 'presales', # CORRECTION 2: Le champ est 'presales' (Many2one)
+    'AM': 'am', # Nom du champ corrigé
+    'Presales': 'presales', # Nom du champ corrigé
     'Nature': 'nature', # Sélection
     'BU': 'bu', # Sélection
     'Domaine': 'domaine', # Sélection
     'Revenus': 'revenue_type', 
-    'Cat Recurrent': 'cat_recurrent', # CORRECTION CRITIQUE: Utilisé 'cat_recurrent'
-    'Date IN': 'date_in', # CORRECTION 3: Le champ est 'date_in' (Date)
+    'Cat Recurrent': 'cat_recurrent', # Nom du champ corrigé
+    'Date IN': 'date_in', # Nom du champ corrigé (Note: Champ Computed/Stored)
     'Pays': 'country_id', # res.country (Many2one)
     'Customer': 'partner_id', # res.partner (Many2one)
-    'Secteur': 'secteur', # CORRECTION CRITIQUE: Utilisé 'secteur' (Many2one)
+    'Secteur': 'secteur', # Nom du champ corrigé (Many2one sur res.partner.category)
     'Description du Projet': 'description',
     'Circuit': 'circuit', # Sélection
-    'SC': 'sc', # CORRECTION 4: Le champ est 'sc' (Many2one sur res.users)
-    'CAS Build': 'cas_build', # CORRECTION 5: Le champ est 'cas_build'
-    'CAS Run': 'cas_run', # CORRECTION 5: Le champ est 'cas_run'
-    'CAS Train': 'cas_train', # CORRECTION 5: Le champ est 'cas_train'
-    'CAS Sw': 'cas_sw', # CORRECTION 5: Le champ est 'cas_sw'
-    'CAS Hw': 'cas_hw', # CORRECTION 5: Le champ est 'cas_hw'
-    'CAS': 'cas', # CORRECTION 5: Le champ est 'cas'
+    'SC': 'sc', # Nom du champ corrigé
+    'CAS Build': 'cas_build', # Nom du champ corrigé
+    'CAS Run': 'cas_run', # Nom du champ corrigé
+    'CAS Train': 'cas_train', # Nom du champ corrigé
+    'CAS Sw': 'cas_sw', # Nom du champ corrigé
+    'CAS Hw': 'cas_hw', # Nom du champ corrigé
+    'CAS': 'cas', # Nom du champ corrigé
     'Statut': 'etat_projet', 
-    'Update Date': 'date_update', # Ce champ n'est pas dans votre modèle, mais conservé pour l'instant.
 }
+
+# Domaine d'e-mail factice pour les utilisateurs créés
+DEFAULT_USER_EMAIL_DOMAIN = 'neuronestech.com'
 
 
 class ProjectImportWizard(models.TransientModel):
@@ -92,7 +94,16 @@ class ProjectImportWizard(models.TransientModel):
             return user.id
 
         try:
-            login_base = re.sub(r'[^a-zA-Z0-9\.]', '', name.lower().replace(' ', '.'))
+            # Création du login de base (ex: Berenger ASSIELOU -> berenger.assielou)
+            parts = name.lower().split()
+            if len(parts) > 1:
+                login_base = ".".join(parts)
+            else:
+                login_base = parts[0]
+            
+            # Nettoyer les caractères non alphanumériques sauf le point
+            login_base = re.sub(r'[^a-z0-9\.]', '', login_base)
+            
             if not login_base:
                  login_base = 'imported.user' 
                 
@@ -107,7 +118,8 @@ class ProjectImportWizard(models.TransientModel):
             user_vals = {
                 'name': name,
                 'login': login_candidate,
-                'email': f'{login_candidate}@{self.env.company.partner_id.email_domain or "example.com"}',
+                # CORRECTION CRITIQUE: Utilisation du domaine spécifié
+                'email': f'{login_candidate}@{DEFAULT_USER_EMAIL_DOMAIN}', 
                 'company_id': self.env.company.id,
                 'notification_type': 'email',
                 'groups_id': [(6, 0, [self.env.ref('base.group_user').id])]
@@ -190,8 +202,8 @@ class ProjectImportWizard(models.TransientModel):
         selection_mapping = {
             'nature': {
                 'livraison': 'livraison', 'end to end': 'end_to_end',
-                # CORRECTION: Votre modèle utilise 'service_pro', pas 'services_pro'
-                'services pro': 'service_pro', 'all': 'all',
+                'services pro': 'service_pro', # Corrigé 'service_pro'
+                'all': 'all',
             },
             'bu': {
                 'ict': 'ict', 'cloud': 'cloud', 'cybersecurity': 'cybersecurity',
@@ -199,11 +211,11 @@ class ProjectImportWizard(models.TransientModel):
             },
             'revenue_type': { 'recurrent': 'recurrent', 'one shot': 'oneshot', 'oneshot': 'oneshot', },
             'circuit': { 
-                # CORRECTION: Votre modèle utilise 'fast' et 'normal'
-                'fast track': 'fast', 'normal': 'normal', 
+                'fast track': 'fast', # Corrigé 'fast'
+                'normal': 'normal', 
             },
             'domaine': {
-                # Mappage de votre liste de domaines
+                # Mappage des valeurs de votre modèle
                 'datacenter facilities (dcf)': 'datacenter_facilities',
                 'modern network integration (mni)': 'modern_network_integration',
                 'agile infrastructure & cloud (aic)': 'agile_infrastructure_cloud',
@@ -215,14 +227,14 @@ class ProjectImportWizard(models.TransientModel):
                 'expert & managed services - train': 'expert_managed_services_train',
                 'expert & managed services - run': 'expert_managed_services_run',
                 'none': 'none',
-                'others': 'others', # Assurez-vous d'avoir 'others' en entrée si c'est la valeur par défaut
+                'others': 'others',
             },
             'etat_projet': { 
-                # Mappage de votre liste d'états
+                # Mappage des valeurs de votre modèle
                 '0-annulé': 'cancelled', '1-non démarré': 'non_demarre', 
-                '2-en cours': 'en_cours_production', # Choix par défaut pour "2-en cours"
+                '2-en cours': 'en_cours_production', 
                 '3-en cours - provisionning': 'en_cours_provisionning', 
-                '4-en cours - livraison': 'termine_pv_bl_signe', # Assumé 4-termine
+                '4-en cours - livraison': 'en_cours_production', # Valeur par défaut
                 '5-terminé - pv/bl signé': 'termine_pv_bl_signe',
                 '6-facturé - attente df': 'facture_attente_df', 
                 '7-cloturé': 'cloture', 
@@ -230,7 +242,6 @@ class ProjectImportWizard(models.TransientModel):
                 '8-suivi - contrat mixte': 'suivi_contrat_mixte', 
                 '8-suivi - contrat de services': 'suivi_contrat_services',
                 '9-suspendu': 'suspendu', 
-                # Mappage des valeurs génériques
                 'cloturé': 'cloture', 'non démarré': 'non_demarre',
                 'en cours': 'en_cours_production', 'terminé': 'termine_pv_bl_signe',
                 'facturé': 'facture_attente_df', 'draft': 'draft', 'suspendu': 'suspendu',
@@ -248,7 +259,6 @@ class ProjectImportWizard(models.TransientModel):
             'etat_projet': 'non_demarre', 'revenue_type': 'oneshot', 'circuit': 'normal'
         }
         
-        # Pour les sélections non trouvées, retourne la valeur brute ou le fallback.
         return fallback_values.get(field, value)
 
     def _show_result_wizard(self):
@@ -262,7 +272,6 @@ class ProjectImportWizard(models.TransientModel):
             'context': self.env.context,
         }
 
-    # Le nom de la méthode d'action est 'action_import_projects' pour correspondre au XML corrigé précédemment
     def action_import_projects(self):
         """Logique principale d'importation des projets."""
         self.import_log = ""
@@ -293,14 +302,6 @@ class ProjectImportWizard(models.TransientModel):
                 values = {}
                 project_name = None
                 
-                # Le champ secteur est Many2one sur project.project, donc pas besoin de partner_categories pour M2M
-                # Les champs 'am', 'date_in', et 'pays' sont des related fields dans votre modèle. 
-                # Il est souvent impossible d'écrire directement dans un related field s'il n'est pas stocké.
-                # Cependant, 'am' et 'pays' sont liés au 'bc' (sale.order) ou au 'partner'.
-                # Tenter d'écrire dans 'am' (related='bc.user_id') ou 'pays' (related='bc.partner_id.country_id')
-                # peut échouer ou n'avoir aucun effet. On les ignore pour l'import de données directes.
-                # Note: 'date_in' a un compute, donc on peut l'ignorer pour l'import.
-
                 for excel_header, odoo_field in COLUMN_MAPPING.items():
                     if excel_header not in headers:
                         continue 
@@ -312,12 +313,11 @@ class ProjectImportWizard(models.TransientModel):
                         continue
                         
                     # Champs RELATED / COMPUTED (AM, Date IN, Pays)
-                    if odoo_field in ['am', 'date_in', 'pays']:
-                        # Ces champs sont calculés ou liés, on ne les force pas.
-                        # Cependant, si 'am' est fourni et est un Many2one, il faut gérer sa recherche.
+                    # On tente l'écriture, mais le champ peut être readonly côté Odoo.
+                    if odoo_field in ['am', 'pays', 'date_in']:
+                        # On ne traite que 'am' pour trouver l'utilisateur, les autres sont ignorés
                         if odoo_field == 'am':
                              user_id = self._find_or_create_user(cell_value)
-                             # On passe l'ID, si Odoo peut l'écrire (si l'attribut related le permet)
                              if user_id:
                                 values[odoo_field] = user_id
                         continue 
@@ -340,11 +340,17 @@ class ProjectImportWizard(models.TransientModel):
                         if category_id:
                             values[odoo_field] = category_id
                             
+                    # Many2one sur res.country
+                    elif odoo_field == 'country_id':
+                        country_id = self._find_or_create_misc('res.country', cell_value)
+                        if country_id:
+                            values[odoo_field] = country_id
+
                     # Champs de sélection
                     elif odoo_field in ['nature', 'bu', 'revenue_type', 'circuit', 'etat_projet', 'domaine']:
                         values[odoo_field] = self._format_value(odoo_field, cell_value)
 
-                    # Champs de date
+                    # Champs de date (Seul date_update est traité car date_in est computed/stored)
                     elif odoo_field == 'date_update':
                         if isinstance(cell_value, datetime):
                             values[odoo_field] = cell_value.strftime('%Y-%m-%d %H:%M:%S')
@@ -360,19 +366,17 @@ class ProjectImportWizard(models.TransientModel):
                         values[odoo_field] = project_name
                         
                     # Champs numériques (Coûts)
-                    elif odoo_field.startswith('cas'): # cas, cas_build, cas_run, etc.
+                    elif odoo_field.startswith('cas'): 
                         try:
                             cleaned_value = re.sub(r'[^\d\.\,]', '', str(cell_value))
                             values[odoo_field] = float(cleaned_value.replace(',', '.') or 0)
                         except (ValueError, TypeError):
                             values[odoo_field] = 0.0
                             
-                    # Champs de description simples (Cat Recurrent)
+                    # Champs de description simples (Cat Recurrent et Description)
                     elif odoo_field in ['description', 'cat_recurrent']:
                         values[odoo_field] = str(cell_value or '').strip()
                         
-                    # Assurez-vous d'ignorer les autres champs si leur nom n'est pas dans le mapping.
-
 
                 if not project_name:
                     raise UserError(_("Le nom du projet (colonne 'Nom') est manquant ou vide."))
@@ -388,8 +392,6 @@ class ProjectImportWizard(models.TransientModel):
                     Project.create(values)
                     self.import_log += _("Ligne %d: Projet '%s' créé.\n" % (row_index, project_name))
                     self.success_count += 1
-                
-                # Pas de logique M2M nécessaire puisque Secteur est M2O (secteur)
                 
             except Exception as e:
                 self.error_count += 1
