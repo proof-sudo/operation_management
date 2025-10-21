@@ -272,9 +272,9 @@ class ProjectImportWizard(models.TransientModel):
                             _logger.warning(f"Ligne {row_num}: {model} non trouvé: {cell_value_str}")
 
         return vals
-
     def _convert_selection_value(self, field, value):
         """Convertit les valeurs de sélection depuis Excel vers Odoo"""
+        original_value = value
         value = value.strip().lower()
         
         # Mapping des valeurs de sélection
@@ -301,16 +301,50 @@ class ProjectImportWizard(models.TransientModel):
                 'cybersecurity': 'cybersecurity',
                 'formation': 'formation',
                 'security': 'security',
+            },
+            'domaine': {
+                # Mapping complet pour le domaine basé sur votre modèle
+                'secured it (sec)': 'secured_it',
+                'agile infrastructure & cloud (aic)': 'agile_infrastructure_cloud',
+                'modern network integration (mni)': 'modern_network_integration', 
+                'digital workspace (dws)': 'digital_workspace',
+                'expert & managed services - run': 'expert_managed_services_run',
+                'expert & managed services - train': 'expert_managed_services_train',
+                'expert & managed services - build': 'expert_managed_services_build',
+                'expert & managed services - think': 'expert_managed_services_think',
+                'datacenter facilities (dcf)': 'datacenter_facilities',
+                'business data integration (bdi)': 'business_data_integration',
+                'security': 'secured_it',
+                'others': 'others',
+                'none': 'none'
+            },
+            'etat_projet': {
+                '7-cloturé': 'cloture',
+                'cloturé': 'cloture',
+                '0-annulé': 'cancelled',
+                '1-non démarré': 'non_demarre',
+                '3-en cours': 'en_cours_production',
+                '4-terminé': 'termine_pv_bl_signe',
+                '5-facturé': 'facture_attente_df',
+                '6-dossier indisponible': 'dossier_indisponible',
+                '7-cloturé': 'cloture',
+                '8-suivi': 'suivi_contrat_services',
+                '9-suspendu': 'suspendu'
             }
         }
         
         if field in selection_mapping:
             for excel_val, odoo_val in selection_mapping[field].items():
                 if value == excel_val.lower():
+                    _logger.info(f"Mapping {field}: '{original_value}' -> '{odoo_val}'")
                     return odoo_val
         
+        _logger.warning(f"Aucun mapping trouvé pour {field}: '{original_value}'")
+        # Pour le domaine, on retourne 'others' si aucune correspondance
+        if field == 'domaine':
+            return 'others'
+        
         return value
-
     def _find_related_record(self, model, search_value, row_num):
         """Trouve un enregistrement related par nom ou autre champ"""
         try:
