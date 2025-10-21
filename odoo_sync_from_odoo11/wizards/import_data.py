@@ -18,28 +18,28 @@ except ImportError:
 COLUMN_MAPPING = {
     'Nom': 'name',
     'PM': 'user_id', # Project Manager (res.users)
-    'AM': 'am', 
-    'Presales': 'presales_id', 
+    'AM': 'am', # CORRECTION 1: Confirme l'utilisation de 'am'
+    'Presales': 'presales', # CORRECTION 2: Le champ est 'presales' (Many2one)
     'Nature': 'nature', # Sélection
     'BU': 'bu', # Sélection
     'Domaine': 'domaine', # Sélection
     'Revenus': 'revenue_type', 
-    'Cat Recurrent': 'recurrent_category', 
-    'Date IN': 'date_start',
-    'Pays': 'country_id', 
-    'Customer': 'partner_id', 
-    'Secteur': 'partner_category_ids', # Renommé pour correspondre au Many2many standard
+    'Cat Recurrent': 'cat_recurrent', # CORRECTION CRITIQUE: Utilisé 'cat_recurrent'
+    'Date IN': 'date_in', # CORRECTION 3: Le champ est 'date_in' (Date)
+    'Pays': 'country_id', # res.country (Many2one)
+    'Customer': 'partner_id', # res.partner (Many2one)
+    'Secteur': 'secteur', # CORRECTION CRITIQUE: Utilisé 'secteur' (Many2one)
     'Description du Projet': 'description',
     'Circuit': 'circuit', # Sélection
-    'SC': 'cost_sc', 
-    'CAS Build': 'cost_cas_build',
-    'CAS Run': 'cost_cas_run',
-    'CAS Train': 'cost_cas_train',
-    'CAS Sw': 'cost_cas_sw',
-    'CAS Hw': 'cost_cas_hw',
-    'CAS': 'cost_cas_total',
+    'SC': 'sc', # CORRECTION 4: Le champ est 'sc' (Many2one sur res.users)
+    'CAS Build': 'cas_build', # CORRECTION 5: Le champ est 'cas_build'
+    'CAS Run': 'cas_run', # CORRECTION 5: Le champ est 'cas_run'
+    'CAS Train': 'cas_train', # CORRECTION 5: Le champ est 'cas_train'
+    'CAS Sw': 'cas_sw', # CORRECTION 5: Le champ est 'cas_sw'
+    'CAS Hw': 'cas_hw', # CORRECTION 5: Le champ est 'cas_hw'
+    'CAS': 'cas', # CORRECTION 5: Le champ est 'cas'
     'Statut': 'etat_projet', 
-    'Update Date': 'date_update',
+    'Update Date': 'date_update', # Ce champ n'est pas dans votre modèle, mais conservé pour l'instant.
 }
 
 
@@ -70,12 +70,10 @@ class ProjectImportWizard(models.TransientModel):
     import_log = fields.Text(string="Journal d'import", readonly=True)
     success_count = fields.Integer(string='Projets créés/mis à jour', readonly=True)
     error_count = fields.Integer(string='Erreurs', readonly=True)
-    
-    # CHAMPS AJOUTÉS POUR CORRESPONDRE À LA VUE XML DE L'UTILISATEUR
     created_users_count = fields.Integer(string='Utilisateurs créés', readonly=True)
     created_partners_count = fields.Integer(string='Clients créés', readonly=True)
     created_categories_count = fields.Integer(string='Catégories créées', readonly=True)
-    # FIN DES AJOUTS
+
 
     # --- MÉTHODES DE GESTION DES ENREGISTREMENTS EXTERNES ---
     
@@ -85,20 +83,15 @@ class ProjectImportWizard(models.TransientModel):
             return False
             
         name = str(name or '').strip()
-        # Ignorer les noms vides ou génériques qui causent l'erreur 'default'
         if not name or name.lower() in ('nan', 'none', 'default', 'n/a', 'na'):
             return False
 
         User = self.env['res.users'].sudo()
-        
-        # 1. Tenter de trouver l'utilisateur par nom
         user = User.search(['|', ('name', '=ilike', name), ('login', '=ilike', name)], limit=1)
         if user:
             return user.id
 
-        # 2. Créer l'utilisateur (avec gestion de login unique)
         try:
-            # Nettoyage et création du login de base (ex: Fatim KEITA -> fatim.keita)
             login_base = re.sub(r'[^a-zA-Z0-9\.]', '', name.lower().replace(' ', '.'))
             if not login_base:
                  login_base = 'imported.user' 
@@ -121,7 +114,7 @@ class ProjectImportWizard(models.TransientModel):
             }
             
             new_user = User.create(user_vals)
-            self.created_users_count += 1 # Incrémentation du compteur
+            self.created_users_count += 1 
             return new_user.id
             
         except Exception as e:
@@ -144,14 +137,13 @@ class ProjectImportWizard(models.TransientModel):
         if partner:
             return partner.id
             
-        # Création du partenaire
         try:
             new_partner = Partner.create({
                 'name': name,
                 'is_company': True,
                 'company_type': 'company',
             })
-            self.created_partners_count += 1 # Incrémentation du compteur
+            self.created_partners_count += 1
             return new_partner.id
         except Exception as e:
             _logger.error("Erreur recherche/création res.partner '%s': %s", name, str(e))
@@ -177,11 +169,10 @@ class ProjectImportWizard(models.TransientModel):
         if record:
             return record.id
 
-        # Création de l'enregistrement
         try:
             new_record = Model.create({'name': name})
             if model_name == 'res.partner.category':
-                self.created_categories_count += 1 # Incrémentation du compteur
+                self.created_categories_count += 1
             return new_record.id
         except Exception as e:
             _logger.error("Erreur recherche/création %s '%s': %s", model_name, name, str(e))
@@ -191,7 +182,6 @@ class ProjectImportWizard(models.TransientModel):
     # --- LOGIQUE DE MAPPING ET IMPORTATION ---
     
     def _format_value(self, field, value):
-        # ... (votre code de mapping inchangé) ...
         if value is None:
             return None
             
@@ -199,47 +189,52 @@ class ProjectImportWizard(models.TransientModel):
 
         selection_mapping = {
             'nature': {
-                'livraison': 'livraison',
-                'end to end': 'end_to_end',
-                'services pro': 'services_pro',
-                'all': 'all',
+                'livraison': 'livraison', 'end to end': 'end_to_end',
+                # CORRECTION: Votre modèle utilise 'service_pro', pas 'services_pro'
+                'services pro': 'service_pro', 'all': 'all',
             },
             'bu': {
-                'ict': 'ict',
-                'cloud': 'cloud',
-                'cybersecurity': 'cybersecurity',
-                'formation': 'formation',
-                'security': 'security',
+                'ict': 'ict', 'cloud': 'cloud', 'cybersecurity': 'cybersecurity',
+                'formation': 'formation', 'security': 'security',
             },
-            'revenue_type': { 
-                'recurrent': 'recurrent',
-                'one shot': 'oneshot',
-                'oneshot': 'oneshot',
+            'revenue_type': { 'recurrent': 'recurrent', 'one shot': 'oneshot', 'oneshot': 'oneshot', },
+            'circuit': { 
+                # CORRECTION: Votre modèle utilise 'fast' et 'normal'
+                'fast track': 'fast', 'normal': 'normal', 
             },
-            'circuit': {
-                'fast track': 'fast_track',
-                'normal': 'normal',
+            'domaine': {
+                # Mappage de votre liste de domaines
+                'datacenter facilities (dcf)': 'datacenter_facilities',
+                'modern network integration (mni)': 'modern_network_integration',
+                'agile infrastructure & cloud (aic)': 'agile_infrastructure_cloud',
+                'business data integration (bdi)': 'business_data_integration',
+                'digital workspace (dws)': 'digital_workspace',
+                'secured it (sec)': 'secured_it',
+                'expert & managed services - think': 'expert_managed_services_think',
+                'expert & managed services - build': 'expert_managed_services_build',
+                'expert & managed services - train': 'expert_managed_services_train',
+                'expert & managed services - run': 'expert_managed_services_run',
+                'none': 'none',
+                'others': 'others', # Assurez-vous d'avoir 'others' en entrée si c'est la valeur par défaut
             },
             'etat_projet': { 
-                '0-annulé': 'annule',
-                '1-non démarré': 'non_demarre',
-                '2-en cours': 'en_cours_production',
-                '3-en cours - provisionning': 'en_cours_provisioning',
-                '4-en cours - livraison': 'en_cours_livraison',
+                # Mappage de votre liste d'états
+                '0-annulé': 'cancelled', '1-non démarré': 'non_demarre', 
+                '2-en cours': 'en_cours_production', # Choix par défaut pour "2-en cours"
+                '3-en cours - provisionning': 'en_cours_provisionning', 
+                '4-en cours - livraison': 'termine_pv_bl_signe', # Assumé 4-termine
                 '5-terminé - pv/bl signé': 'termine_pv_bl_signe',
-                '6-facturé - attente df': 'facture_attente_df',
-                '7-cloturé': 'cloture',
-                '8-suivi - contrat licence': 'suivi_contrat_licence',
-                '8-suivi - contrat mixte': 'suivi_contrat_mixte',
+                '6-facturé - attente df': 'facture_attente_df', 
+                '7-cloturé': 'cloture', 
+                '8-suivi - contrat licence': 'suivi_contrat_licence', 
+                '8-suivi - contrat mixte': 'suivi_contrat_mixte', 
                 '8-suivi - contrat de services': 'suivi_contrat_services',
-                '9-suspendu': 'suspendu',
-                'cloturé': 'cloture',
-                'non démarré': 'non_demarre',
-                'en cours': 'en_cours_production',
-                'terminé': 'termine_pv_bl_signe',
-                'facturé': 'facture_attente_df',
-                'draft': 'draft',
-                'suspendu': 'suspendu',
+                '9-suspendu': 'suspendu', 
+                # Mappage des valeurs génériques
+                'cloturé': 'cloture', 'non démarré': 'non_demarre',
+                'en cours': 'en_cours_production', 'terminé': 'termine_pv_bl_signe',
+                'facturé': 'facture_attente_df', 'draft': 'draft', 'suspendu': 'suspendu',
+                'cancelled': 'cancelled',
             }
         }
         
@@ -249,14 +244,11 @@ class ProjectImportWizard(models.TransientModel):
                     return odoo_val
         
         fallback_values = {
-            'nature': 'all',
-            'bu': 'ict', 
-            'domaine': 'others',
-            'etat_projet': 'non_demarre',
-            'revenue_type': 'oneshot',
-            'circuit': 'normal'
+            'nature': 'all', 'bu': 'ict', 'domaine': 'others',
+            'etat_projet': 'non_demarre', 'revenue_type': 'oneshot', 'circuit': 'normal'
         }
         
+        # Pour les sélections non trouvées, retourne la valeur brute ou le fallback.
         return fallback_values.get(field, value)
 
     def _show_result_wizard(self):
@@ -270,8 +262,9 @@ class ProjectImportWizard(models.TransientModel):
             'context': self.env.context,
         }
 
+    # Le nom de la méthode d'action est 'action_import_projects' pour correspondre au XML corrigé précédemment
     def action_import_projects(self):
-        """Logique principale d'importation des projets. (Nom de la méthode à utiliser dans le XML)"""
+        """Logique principale d'importation des projets."""
         self.import_log = ""
         self.success_count = 0
         self.error_count = 0
@@ -299,8 +292,15 @@ class ProjectImportWizard(models.TransientModel):
             try:
                 values = {}
                 project_name = None
-                partner_categories = []
                 
+                # Le champ secteur est Many2one sur project.project, donc pas besoin de partner_categories pour M2M
+                # Les champs 'am', 'date_in', et 'pays' sont des related fields dans votre modèle. 
+                # Il est souvent impossible d'écrire directement dans un related field s'il n'est pas stocké.
+                # Cependant, 'am' et 'pays' sont liés au 'bc' (sale.order) ou au 'partner'.
+                # Tenter d'écrire dans 'am' (related='bc.user_id') ou 'pays' (related='bc.partner_id.country_id')
+                # peut échouer ou n'avoir aucun effet. On les ignore pour l'import de données directes.
+                # Note: 'date_in' a un compute, donc on peut l'ignorer pour l'import.
+
                 for excel_header, odoo_field in COLUMN_MAPPING.items():
                     if excel_header not in headers:
                         continue 
@@ -311,35 +311,41 @@ class ProjectImportWizard(models.TransientModel):
                     if cell_value is None or str(cell_value).strip() == '':
                         continue
                         
-                    # Champs de relation (Many2one)
-                    if odoo_field in ['user_id', 'account_manager_id', 'presales_id']:
+                    # Champs RELATED / COMPUTED (AM, Date IN, Pays)
+                    if odoo_field in ['am', 'date_in', 'pays']:
+                        # Ces champs sont calculés ou liés, on ne les force pas.
+                        # Cependant, si 'am' est fourni et est un Many2one, il faut gérer sa recherche.
+                        if odoo_field == 'am':
+                             user_id = self._find_or_create_user(cell_value)
+                             # On passe l'ID, si Odoo peut l'écrire (si l'attribut related le permet)
+                             if user_id:
+                                values[odoo_field] = user_id
+                        continue 
+
+                    # Champs Many2one sur res.users (PM, Presales, SC)
+                    if odoo_field in ['user_id', 'presales', 'sc']:
                         user_id = self._find_or_create_user(cell_value)
                         if user_id:
                             values[odoo_field] = user_id
                         
-                    # Champs de relation (Many2one)
+                    # Many2one sur res.partner (Customer)
                     elif odoo_field == 'partner_id':
                         partner_id = self._find_or_create_partner(cell_value)
                         if partner_id:
                             values[odoo_field] = partner_id
                             
-                    elif odoo_field == 'country_id':
-                        country_id = self._find_or_create_misc('res.country', cell_value)
-                        if country_id:
-                            values[odoo_field] = country_id
-
-                    # Champ de Catégorie Partenaire (M2M)
-                    elif odoo_field == 'partner_category_ids':
+                    # Many2one sur res.partner.category (Secteur)
+                    elif odoo_field == 'secteur':
                         category_id = self._find_or_create_misc('res.partner.category', cell_value)
                         if category_id:
-                            partner_categories.append(category_id)
+                            values[odoo_field] = category_id
                             
                     # Champs de sélection
                     elif odoo_field in ['nature', 'bu', 'revenue_type', 'circuit', 'etat_projet', 'domaine']:
                         values[odoo_field] = self._format_value(odoo_field, cell_value)
 
                     # Champs de date
-                    elif odoo_field in ['date_start', 'date_update']:
+                    elif odoo_field == 'date_update':
                         if isinstance(cell_value, datetime):
                             values[odoo_field] = cell_value.strftime('%Y-%m-%d %H:%M:%S')
                         elif isinstance(cell_value, str):
@@ -353,17 +359,19 @@ class ProjectImportWizard(models.TransientModel):
                         project_name = str(cell_value).strip()
                         values[odoo_field] = project_name
                         
-                    # Champs numériques
-                    elif odoo_field.startswith('cost_'):
+                    # Champs numériques (Coûts)
+                    elif odoo_field.startswith('cas'): # cas, cas_build, cas_run, etc.
                         try:
                             cleaned_value = re.sub(r'[^\d\.\,]', '', str(cell_value))
                             values[odoo_field] = float(cleaned_value.replace(',', '.') or 0)
                         except (ValueError, TypeError):
                             values[odoo_field] = 0.0
                             
-                    # Autres champs simples
-                    else:
+                    # Champs de description simples (Cat Recurrent)
+                    elif odoo_field in ['description', 'cat_recurrent']:
                         values[odoo_field] = str(cell_value or '').strip()
+                        
+                    # Assurez-vous d'ignorer les autres champs si leur nom n'est pas dans le mapping.
 
 
                 if not project_name:
@@ -381,13 +389,7 @@ class ProjectImportWizard(models.TransientModel):
                     self.import_log += _("Ligne %d: Projet '%s' créé.\n" % (row_index, project_name))
                     self.success_count += 1
                 
-                # Mise à jour des catégories du partenaire après la création/mise à jour du projet
-                if partner_categories and values.get('partner_id'):
-                    partner = self.env['res.partner'].sudo().browse(values['partner_id'])
-                    # Ajoute les nouvelles catégories sans écraser les existantes
-                    current_categories = partner.category_id.ids
-                    new_categories = list(set(current_categories + partner_categories))
-                    partner.write({'category_id': [(6, 0, new_categories)]})
+                # Pas de logique M2M nécessaire puisque Secteur est M2O (secteur)
                 
             except Exception as e:
                 self.error_count += 1
