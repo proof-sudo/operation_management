@@ -3,6 +3,7 @@ from odoo.exceptions import UserError
 import base64
 import xlrd
 import logging
+from datetime import datetime
 
 _logger = logging.getLogger(__name__)
 
@@ -12,219 +13,330 @@ class ProjectImportWizard(models.TransientModel):
 
     import_file = fields.Binary(
         string='Fichier Excel',
-        required=True,
-        help='Fichier Excel (.xlsx) contenant les données des projets'
+        required=True
     )
     import_filename = fields.Char(string='Nom du fichier')
     
-    # Options d'import
     update_existing = fields.Boolean(
         string='Mettre à jour les projets existants',
-        default=True,
-        help='Si cochée, met à jour les projets existants basés sur le nom'
+        default=True
     )
     create_missing = fields.Boolean(
         string='Créer les projets manquants',
-        default=True,
-        help='Si cochée, crée les projets qui n\'existent pas'
+        default=True
     )
     
-    # Résultats de l'import
-    import_log = fields.Text(
-        string='Journal d\'import',
-        readonly=True
-    )
-    success_count = fields.Integer(
-        string='Projets importés/mis à jour',
-        readonly=True
-    )
-    error_count = fields.Integer(
-        string='Erreurs',
-        readonly=True
-    )
+    import_log = fields.Text(string='Journal d\'import', readonly=True)
+    success_count = fields.Integer(string='Succès', readonly=True)
+    error_count = fields.Integer(string='Erreurs', readonly=True)
 
     def action_import(self):
-        """Action principale d'import du fichier Excel"""
-        self.ensure_one()
-        
+        """Action principale d'import"""
         if not self.import_file:
-            raise UserError(_("Veuillez sélectionner un fichier Excel à importer."))
+            raise UserError(_("Veuillez sélectionner un fichier Excel."))
 
-        log_messages = ["=== DÉBUT DE L'IMPORT EXCEL ==="]
+        log_messages = ["=== DÉBUT DE L'IMPORT ==="]
         success_count = 0
         error_count = 0
 
         try:
-            # Décoder le fichier
             file_content = base64.b64decode(self.import_file)
             workbook = xlrd.open_workbook(file_contents=file_content)
-            sheet = workbook.sheet_by_index(0)  # Première feuille
+            sheet = workbook.sheet_by_index(0)
             
-            # Lire les en-têtes
-            headers = [header.lower().strip() for header in sheet.row_values(0)]
-            required_headers = ['name', 'nature', 'domaine', 'secteur']
+            headers = [str(header).strip() for header in sheet.row_values(0)]
+            _logger.info(f"En-têtes détectés: {headers}")
             
-            # Vérifier les en-têtes requis
-            for req_header in required_headers:
-                if req_header not in headers:
-                    raise UserError(_(
-                        f"Colonne requise manquante: {req_header}. "
-                        f"Colonnes trouvées: {headers}"
-                    ))
+            # MAPPING DES COLONNES EXCEL -> CHAMPS ODOO
+            col_mapping = self._create_column_mapping(headers)
+            
+            # Vérifier les colonnes obligatoires
+            if col_mapping['name'] is None:
+                raise UserError(_("La colonne 'Nom' est obligatoire dans le fichier Excel."))
 
-            # Mapping des colonnes
-            col_mapping = {
-                'name': headers.index('name'),
-                'nature': headers.index('nature') if 'nature' in headers else None,
-                'domaine': headers.index('domaine') if 'domaine' in headers else None,
-                'secteur': headers.index('secteur') if 'secteur' in headers else None,
-                'bu': headers.index('bu') if 'bu' in headers else None,
-                'circuit': headers.index('circuit') if 'circuit' in headers else None,
-                'priorite': headers.index('priorite') if 'priorite' in headers else None,
-                'etat_projet': headers.index('etat_projet') if 'etat_projet' in headers else None,
-                'cas': headers.index('cas') if 'cas' in headers else None,
-                'cafy': headers.index('cafy') if 'cafy' in headers else None,
-                'am': headers.index('am') if 'am' in headers else None,
-                'presales': headers.index('presales') if 'presales' in headers else None,
-            }
-
-            # Parcourir les lignes de données
             for row_idx in range(1, sheet.nrows):
                 try:
                     row_data = sheet.row_values(row_idx)
-                    project_vals = self._prepare_project_vals(row_data, col_mapping)
+                    project_vals = self._prepare_project_vals(row_data, col_mapping, row_idx + 1)
                     
-                    # Rechercher le projet existant
+                    project_name = project_vals.get('name')
+                    if not project_name:
+                        log_messages.append(f"⚠️ Ligne {row_idx + 1}: Nom manquant, ligne ignorée")
+                        continue
+
                     project = self.env['project.project'].search([
-                        ('name', '=', project_vals.get('name'))
+                        ('name', '=', project_name)
                     ], limit=1)
                     
                     if project and self.update_existing:
-                        # Mettre à jour le projet existant
                         project.write(project_vals)
-                        log_messages.append(f"✓ Ligne {row_idx + 1}: Projet '{project_vals['name']}' mis à jour")
+                        log_messages.append(f"✓ Ligne {row_idx + 1}: '{project_name}' mis à jour")
                         success_count += 1
-                        
                     elif self.create_missing:
-                        # Créer un nouveau projet
                         self.env['project.project'].create(project_vals)
-                        log_messages.append(f"✓ Ligne {row_idx + 1}: Projet '{project_vals['name']}' créé")
+                        log_messages.append(f"✓ Ligne {row_idx + 1}: '{project_name}' créé")
                         success_count += 1
                     else:
-                        log_messages.append(f"⏭ Ligne {row_idx + 1}: Projet '{project_vals['name']}' ignoré (création désactivée)")
+                        log_messages.append(f"⏭ Ligne {row_idx + 1}: '{project_name}' ignoré")
                         
                 except Exception as e:
                     error_count += 1
-                    error_msg = f"✗ Ligne {row_idx + 1}: Erreur - {str(e)}"
-                    log_messages.append(error_msg)
-                    _logger.error(error_msg)
+                    log_messages.append(f"✗ Ligne {row_idx + 1}: Erreur - {str(e)}")
+                    _logger.error(f"Erreur ligne {row_idx + 1}: {str(e)}")
 
-            # Finaliser le journal
             log_messages.append(f"\n=== RÉSUMÉ ===")
             log_messages.append(f"Projets traités avec succès: {success_count}")
             log_messages.append(f"Erreurs: {error_count}")
             log_messages.append("=== FIN DE L'IMPORT ===")
 
-            # Mettre à jour le wizard avec les résultats
             self.write({
                 'import_log': '\n'.join(log_messages),
                 'success_count': success_count,
                 'error_count': error_count
             })
 
-            # Afficher un message de confirmation
-            if error_count == 0:
-                return {
-                    'type': 'ir.actions.act_window',
-                    'res_model': self._name,
-                    'res_id': self.id,
-                    'view_mode': 'form',
-                    'target': 'new',
-                    'context': {'import_success': True}
-                }
-            else:
-                warning_msg = _(
-                    f"Import terminé avec {success_count} succès et {error_count} erreurs. "
-                    f"Consultez le journal pour plus de détails."
-                )
-                raise UserError(warning_msg)
+            return self._show_result_wizard()
 
         except Exception as e:
-            _logger.error(f"Erreur lors de l'import Excel: {str(e)}")
-            raise UserError(_(f"Erreur lors de la lecture du fichier Excel: {str(e)}"))
+            _logger.error(f"Erreur générale import: {str(e)}")
+            raise UserError(_(f"Erreur lors de l'import: {str(e)}"))
 
-    def _prepare_project_vals(self, row_data, col_mapping):
-        """Prépare les valeurs du projet à partir des données Excel"""
+    def _create_column_mapping(self, headers):
+        """Crée le mapping entre les colonnes Excel et les champs Odoo"""
+        mapping = {}
+        
+        # Mapping direct des colonnes
+        column_mapping = {
+            'Nom': 'name',
+            'Nature': 'nature',
+            'BU': 'bu',
+            'Domaine': 'domaine',
+            'Revenus': 'revenue_type',
+            'Cat Recurrent': 'cat_recurrent',
+            'AM': 'am',
+            'Presales': 'presales',
+            'Date IN': 'date_in',
+            'Pays': 'pays',
+            'Secteur': 'secteur',
+            'Description du Projet': 'description',
+            'Circuit': 'circuit',
+            'SC': 'sc',
+            'CAS Build': 'cas_build',
+            'CAS Run': 'cas_run',
+            'CAS Train': 'cas_train',
+            'CAS Sw': 'cas_sw',
+            'CAS Hw': 'cas_hw',
+            'CAS': 'cas',
+            'Statut': 'etat_projet',
+            'Update Date': 'write_date'
+        }
+        
+        for excel_col, odoo_field in column_mapping.items():
+            if excel_col in headers:
+                mapping[odoo_field] = headers.index(excel_col)
+            else:
+                mapping[odoo_field] = None
+                _logger.warning(f"Colonne '{excel_col}' non trouvée dans le fichier")
+        
+        # Gestion spéciale pour PM (Project Manager)
+        if 'PM' in headers:
+            mapping['user_id'] = headers.index('PM')
+        else:
+            mapping['user_id'] = None
+            
+        # Gestion spéciale pour Customer (Partenaire)
+        if 'Customer' in headers:
+            mapping['partner_id'] = headers.index('Customer')
+        else:
+            mapping['partner_id'] = None
+            
+        return mapping
+
+    def _prepare_project_vals(self, row_data, col_mapping, row_num):
+        """Prépare les valeurs pour la création/mise à jour du projet"""
         vals = {}
         
-        # Champs de base
+        # Champ nom (obligatoire)
         if col_mapping['name'] is not None:
             vals['name'] = str(row_data[col_mapping['name']]).strip()
         
         # Champs de sélection
         selection_fields = {
             'nature': 'nature',
-            'domaine': 'domaine', 
             'bu': 'bu',
+            'domaine': 'domaine',
+            'revenue_type': 'revenue_type',
             'circuit': 'circuit',
-            'priorite': 'priorite',
             'etat_projet': 'etat_projet'
         }
         
-        for excel_col, odoo_field in selection_fields.items():
-            if col_mapping[excel_col] is not None:
-                cell_value = str(row_data[col_mapping[excel_col]]).strip()
+        for odoo_field in selection_fields:
+            if col_mapping[odoo_field] is not None:
+                cell_value = str(row_data[col_mapping[odoo_field]]).strip()
+                if cell_value and cell_value.lower() != 'none' and cell_value != '':
+                    # Conversion des valeurs si nécessaire
+                    converted_value = self._convert_selection_value(odoo_field, cell_value)
+                    if converted_value:
+                        vals[odoo_field] = converted_value
+        
+        # Champs texte
+        text_fields = ['cat_recurrent', 'description']
+        for field in text_fields:
+            if col_mapping.get(field) is not None:
+                cell_value = str(row_data[col_mapping[field]]).strip()
                 if cell_value:
-                    vals[odoo_field] = cell_value
+                    vals[field] = cell_value
         
         # Champs numériques
-        numeric_fields = {'cas': 'cas', 'cafy': 'cafy'}
-        for excel_col, odoo_field in numeric_fields.items():
-            if col_mapping[excel_col] is not None:
+        numeric_fields = {
+            'cas_build': 'cas_build',
+            'cas_run': 'cas_run', 
+            'cas_train': 'cas_train',
+            'cas_sw': 'cas_sw',
+            'cas_hw': 'cas_hw',
+            'cas': 'cas'
+        }
+        
+        for excel_field, odoo_field in numeric_fields.items():
+            if col_mapping[odoo_field] is not None:
                 try:
-                    cell_value = row_data[col_mapping[excel_col]]
-                    if cell_value:
+                    cell_value = row_data[col_mapping[odoo_field]]
+                    if cell_value != '':
                         vals[odoo_field] = float(cell_value)
-                except (ValueError, TypeError):
-                    pass  # Garde la valeur par défaut si conversion impossible
+                except (ValueError, TypeError) as e:
+                    _logger.warning(f"Ligne {row_num}: Valeur numérique invalide pour {excel_field}: {cell_value}")
         
-        # Gestion du secteur (Many2one)
-        if col_mapping['secteur'] is not None:
-            secteur_name = str(row_data[col_mapping['secteur']]).strip()
-            if secteur_name:
-                secteur = self.env['res.partner.category'].search([
-                    ('name', '=ilike', secteur_name)
-                ], limit=1)
-                if secteur:
-                    vals['secteur'] = secteur.id
-                else:
-                    _logger.warning(f"Secteur non trouvé: {secteur_name}")
+        # Champs dates
+        date_fields = {'date_in': 'date_in'}
+        for odoo_field in date_fields:
+            if col_mapping[odoo_field] is not None:
+                cell_value = row_data[col_mapping[odoo_field]]
+                if cell_value:
+                    try:
+                        if isinstance(cell_value, float):
+                            # Conversion depuis Excel date (nombre de jours depuis 1900)
+                            date_tuple = xlrd.xldate_as_tuple(cell_value, 0)
+                            if date_tuple[0] > 1900:  # Date valide
+                                vals[odoo_field] = f"{date_tuple[0]}-{date_tuple[1]:02d}-{date_tuple[2]:02d}"
+                        else:
+                            # Tentative de parsing de date string
+                            date_str = str(cell_value).strip()
+                            if date_str:
+                                # Essaye différents formats de date
+                                for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y']:
+                                    try:
+                                        date_obj = datetime.strptime(date_str, fmt)
+                                        vals[odoo_field] = date_obj.strftime('%Y-%m-%d')
+                                        break
+                                    except ValueError:
+                                        continue
+                    except Exception as e:
+                        _logger.warning(f"Ligne {row_num}: Date invalide pour {odoo_field}: {cell_value}")
         
-        # Gestion des utilisateurs (AM, Presales)
-        user_fields = {'am': 'am', 'presales': 'presales'}
-        for excel_col, odoo_field in user_fields.items():
-            if col_mapping[excel_col] is not None:
-                user_login = str(row_data[col_mapping[excel_col]]).strip()
-                if user_login:
-                    user = self.env['res.users'].search([
-                        '|', ('login', '=ilike', user_login),
-                        ('name', '=ilike', user_login)
-                    ], limit=1)
-                    if user:
-                        vals[odoo_field] = user.id
+        # Champs relationnels (Many2one)
+        relational_fields = {
+            'secteur': ('res.partner.category', 'secteur'),
+            'pays': ('res.country', 'pays'),
+            'user_id': ('res.users', 'user_id'),  # PM
+            'am': ('res.users', 'am'),
+            'presales': ('res.users', 'presales'),
+            'sc': ('res.users', 'sc'),
+            'partner_id': ('res.partner', 'partner_id')  # Customer
+        }
+        
+        for odoo_field, (model, field_name) in relational_fields.items():
+            if col_mapping[odoo_field] is not None:
+                cell_value = str(row_data[col_mapping[odoo_field]]).strip()
+                if cell_value:
+                    record = self._find_related_record(model, cell_value, row_num)
+                    if record:
+                        vals[field_name] = record.id
                     else:
-                        _logger.warning(f"Utilisateur non trouvé: {user_login}")
+                        _logger.warning(f"Ligne {row_num}: {model} non trouvé: {cell_value}")
         
         return vals
 
-    def action_show_log(self):
-        """Action pour afficher le journal d'import"""
+    def _convert_selection_value(self, field, value):
+        """Convertit les valeurs de sélection depuis Excel vers Odoo"""
+        value = value.strip().lower()
+        
+        # Mapping des valeurs de sélection
+        selection_mapping = {
+            'nature': {
+                'all': 'all',
+                'end to end': 'end_to_end',
+                'livraison': 'livraison',
+                'service pro': 'service_pro',
+            },
+            'revenue_type': {
+                'one shot': 'oneshot',
+                'oneshot': 'oneshot',
+                'recurrent': 'recurrent',
+            },
+            'circuit': {
+                'fast': 'fast',
+                'fast track': 'fast',
+                'normal': 'normal',
+            },
+            'bu': {
+                'ict': 'ict',
+                'cloud': 'cloud',
+                'cybersecurity': 'cybersecurity',
+                'formation': 'formation',
+                'security': 'security',
+            }
+        }
+        
+        if field in selection_mapping:
+            for excel_val, odoo_val in selection_mapping[field].items():
+                if value == excel_val.lower():
+                    return odoo_val
+        
+        # Pour les autres champs, retourne la valeur originale
+        return value
+
+    def _find_related_record(self, model, search_value, row_num):
+        """Trouve un enregistrement related par nom ou autre champ"""
+        try:
+            if model == 'res.users':
+                return self.env[model].search([
+                    '|', ('name', '=ilike', search_value),
+                    ('login', '=ilike', search_value)
+                ], limit=1)
+            elif model == 'res.partner':
+                return self.env[model].search([
+                    ('name', '=ilike', search_value)
+                ], limit=1)
+            elif model == 'res.partner.category':
+                return self.env[model].search([
+                    ('name', '=ilike', search_value)
+                ], limit=1)
+            elif model == 'res.country':
+                return self.env[model].search([
+                    '|', ('name', '=ilike', search_value),
+                    ('code', '=ilike', search_value)
+                ], limit=1)
+        except Exception as e:
+            _logger.error(f"Erreur recherche {model} '{search_value}': {str(e)}")
+        return None
+
+    def _show_result_wizard(self):
+        """Affiche le wizard avec les résultats"""
         return {
             'type': 'ir.actions.act_window',
-            'name': 'Journal d\'import',
+            'name': 'Résultat de l\'import',
             'res_model': self._name,
             'res_id': self.id,
             'view_mode': 'form',
             'target': 'new',
-            'context': {'show_log': True}
+        }
+
+    def action_open_wizard(self):
+        """Ouvre le wizard d'import"""
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Importer des projets depuis Excel',
+            'res_model': self._name,
+            'view_mode': 'form',
+            'target': 'new',
         }

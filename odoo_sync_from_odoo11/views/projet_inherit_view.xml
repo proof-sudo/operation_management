@@ -9,10 +9,10 @@
             <field name="arch" type="xml">
             <xpath expr="//header" position="inside">
                 <div class="oe_button_box" >
-                    <button name="action_project_import_wizard"
+                    <button name="%(action_project_import_wizard)d"
                         string="Importer depuis Excel"
                         type="action"
-                        class="btn-primary"
+                        class="btn-primary o_list_button"
                         icon="fa-download"/>
                 </div>
             </xpath>
