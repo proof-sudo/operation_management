@@ -25,6 +25,7 @@
         'views/project_list_view_inherit.xml',
         'views/create_project_wizard_view.xml',
         'views/purchase_order_view.xml',
+        'wizards/import_wizard_views.xml',
         
         
         # ici on pourrait ajouter des vues ou des sécurités si nécessaire

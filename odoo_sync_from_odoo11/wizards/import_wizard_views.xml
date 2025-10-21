@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_project_import_wizard_form" model="ir.ui.view">
+        <field name="name">project.import.wizard.form</field>
+        <field name="model">project.import.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Importer des projets depuis Excel">
+                <sheet>
+                    <!-- Section Fichier -->
+                    <group string="Fichier Source">
+                        <field name="import_file" filename="import_filename" string="Sélectionner le fichier Excel"/>
+                    </group>
+                    
+                    <!-- Section Options -->
+                    <group string="Options d'import">
+                        <field name="update_existing" string="Mettre à jour les projets existants"/>
+                        <field name="create_missing" string="Créer les projets manquants"/>
+                    </group>
+                    
+                    <!-- Aide format fichier -->
+                    <div class="bg-info p-3 rounded" invisible="1">
+                        <h6>Format du fichier Excel attendu :</h6>
+                        <p>Colonnes obligatoires : <strong>name, nature, domaine, secteur</strong></p>
+                        <p>Colonnes optionnelles : bu, circuit, priorite, etat_projet, cas, cafy, am, presales</p>
+                        <p class="mb-0">La première ligne doit contenir les en-têtes de colonnes</p>
+                    </div>
+                    
+                    <!-- Section Résultats (dynamique) -->
+                    <group string="Résultats de l'import" 
+                           invisible="not success_count and not error_count">
+                        <div class="row">
+                            <div class="col-6">
+                                <field name="success_count" string="Succès" 
+                                       widget="progressbar" 
+                                       options="{'editable': false, 'max_value': success_count + error_count}"/>
+                            </div>
+                            <div class="col-6">
+                                <field name="error_count" string="Erreurs"
+                                       widget="progressbar"
+                                       options="{'editable': false, 'max_value': success_count + error_count, 'color': 'danger'}"/>
+                            </div>
+                        </div>
+                    </group>
+                    
+                    <!-- Journal d'import -->
+                    <group string="Détails de l'import" invisible="not import_log">
+                        <field name="import_log" nolabel="1" widget="textarea" style="height: 250px;" readonly="1"/>
+                    </group>
+                </sheet>
+                
+                <footer>
+                    <button name="action_import" string="Lancer l'import" type="object" class="btn-primary"/>
+                    <button name="action_show_log" string="Afficher les détails" type="object" 
+                            invisible="not import_log" class="btn-secondary"/>
+                    <button string="Fermer" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
