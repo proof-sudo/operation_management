@@ -26,7 +26,7 @@ COLUMN_MAPPING = {
     'Revenus': 'revenue_type', 
     'Cat Recurrent': 'cat_recurrent', # Nom du champ corrigé
     'Date IN': 'date_in', # Nom du champ corrigé (Note: Champ Computed/Stored)
-    'Pays': 'country_id', # res.country (Many2one)
+    'Pays': 'pays', # res.country (Many2one)
     'Customer': 'partner_id', # res.partner (Many2one)
     'Secteur': 'secteur', # Nom du champ corrigé (Many2one sur res.partner.category)
     'Description du Projet': 'description',
