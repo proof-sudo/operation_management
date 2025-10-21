@@ -36,6 +36,7 @@ action = env['ir.actions.act_window']._for_xml_id('odoo_sync_from_odoo11.action_
                     <group string="Options d'import">
                         <field name="update_existing" string="Mettre à jour les projets existants"/>
                         <field name="create_missing" string="Créer les projets manquants"/>
+                        <field name="create_missing_records" string="Créer les enregistrements manquants"/>
                     </group>
                     
                     <!-- Aide format fichier -->
@@ -49,11 +50,15 @@ action = env['ir.actions.act_window']._for_xml_id('odoo_sync_from_odoo11.action_
                     
                     <!-- Résultats -->
                     <group string="Résultats de l'import" invisible="not success_count and not error_count">
-                        <group string="Statistiques">
-                            <group>
-                                <field name="success_count" string="Projets traités avec succès" readonly="1"/>
-                                <field name="error_count" string="Erreurs rencontrées" readonly="1"/>
-                            </group>
+                        <group string="Statistiques principales">
+                            <field name="success_count" string="Projets traités avec succès" readonly="1"/>
+                            <field name="error_count" string="Erreurs rencontrées" readonly="1"/>
+                        </group>
+                        
+                        <group string="Enregistrements créés" invisible="not create_missing_records or (not created_users_count and not created_partners_count and not created_categories_count)">
+                            <field name="created_users_count" string="Utilisateurs créés" readonly="1"/>
+                            <field name="created_partners_count" string="Clients créés" readonly="1"/>
+                            <field name="created_categories_count" string="Catégories créées" readonly="1"/>
                         </group>
                     </group>
                     
