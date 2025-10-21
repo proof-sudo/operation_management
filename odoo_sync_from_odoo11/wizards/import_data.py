@@ -1,11 +1,17 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import base64
-import xlrd
+import io
 import logging
 from datetime import datetime
 
 _logger = logging.getLogger(__name__)
+
+try:
+    import openpyxl
+except ImportError:
+    _logger.warning("Le module openpyxl n'est pas installé. Installation requise: pip install openpyxl")
+    openpyxl = None
 
 class ProjectImportWizard(models.TransientModel):
     _name = 'project.import.wizard'
@@ -35,33 +41,49 @@ class ProjectImportWizard(models.TransientModel):
         if not self.import_file:
             raise UserError(_("Veuillez sélectionner un fichier Excel."))
 
+        if not openpyxl:
+            raise UserError(_(
+                "Le module 'openpyxl' n'est pas installé. "
+                "Veuillez l'installer avec: pip install openpyxl"
+            ))
+
         log_messages = ["=== DÉBUT DE L'IMPORT ==="]
         success_count = 0
         error_count = 0
 
         try:
+            # Lecture du fichier avec openpyxl
             file_content = base64.b64decode(self.import_file)
-            workbook = xlrd.open_workbook(file_contents=file_content)
-            sheet = workbook.sheet_by_index(0)
+            workbook = openpyxl.load_workbook(filename=io.BytesIO(file_content), data_only=True)
+            sheet = workbook.active  # Première feuille
             
-            headers = [str(header).strip() for header in sheet.row_values(0)]
+            # Lecture des en-têtes
+            headers = []
+            for cell in sheet[1]:  # Première ligne
+                headers.append(str(cell.value).strip() if cell.value else "")
+            
             _logger.info(f"En-têtes détectés: {headers}")
             
-            # MAPPING DES COLONNES EXCEL -> CHAMPS ODOO
+            # Mapping des colonnes
             col_mapping = self._create_column_mapping(headers)
             
             # Vérifier les colonnes obligatoires
             if col_mapping['name'] is None:
                 raise UserError(_("La colonne 'Nom' est obligatoire dans le fichier Excel."))
 
-            for row_idx in range(1, sheet.nrows):
+            # Parcourir les lignes de données
+            for row_idx in range(2, sheet.max_row + 1):  # Commence à la ligne 2
                 try:
-                    row_data = sheet.row_values(row_idx)
-                    project_vals = self._prepare_project_vals(row_data, col_mapping, row_idx + 1)
+                    row_data = []
+                    for col_idx in range(1, sheet.max_column + 1):
+                        cell_value = sheet.cell(row=row_idx, column=col_idx).value
+                        row_data.append(cell_value)
+                    
+                    project_vals = self._prepare_project_vals(row_data, col_mapping, row_idx)
                     
                     project_name = project_vals.get('name')
                     if not project_name:
-                        log_messages.append(f"⚠️ Ligne {row_idx + 1}: Nom manquant, ligne ignorée")
+                        log_messages.append(f"⚠️ Ligne {row_idx}: Nom manquant, ligne ignorée")
                         continue
 
                     project = self.env['project.project'].search([
@@ -70,19 +92,19 @@ class ProjectImportWizard(models.TransientModel):
                     
                     if project and self.update_existing:
                         project.write(project_vals)
-                        log_messages.append(f"✓ Ligne {row_idx + 1}: '{project_name}' mis à jour")
+                        log_messages.append(f"✓ Ligne {row_idx}: '{project_name}' mis à jour")
                         success_count += 1
                     elif self.create_missing:
                         self.env['project.project'].create(project_vals)
-                        log_messages.append(f"✓ Ligne {row_idx + 1}: '{project_name}' créé")
+                        log_messages.append(f"✓ Ligne {row_idx}: '{project_name}' créé")
                         success_count += 1
                     else:
-                        log_messages.append(f"⏭ Ligne {row_idx + 1}: '{project_name}' ignoré")
+                        log_messages.append(f"⏭ Ligne {row_idx}: '{project_name}' ignoré")
                         
                 except Exception as e:
                     error_count += 1
-                    log_messages.append(f"✗ Ligne {row_idx + 1}: Erreur - {str(e)}")
-                    _logger.error(f"Erreur ligne {row_idx + 1}: {str(e)}")
+                    log_messages.append(f"✗ Ligne {row_idx}: Erreur - {str(e)}")
+                    _logger.error(f"Erreur ligne {row_idx}: {str(e)}")
 
             log_messages.append(f"\n=== RÉSUMÉ ===")
             log_messages.append(f"Projets traités avec succès: {success_count}")
@@ -128,7 +150,9 @@ class ProjectImportWizard(models.TransientModel):
             'CAS Hw': 'cas_hw',
             'CAS': 'cas',
             'Statut': 'etat_projet',
-            'Update Date': 'write_date'
+            'Update Date': 'write_date',
+            'PM': 'user_id',  # Chef de projet
+            'Customer': 'partner_id'  # Client
         }
         
         for excel_col, odoo_field in column_mapping.items():
@@ -138,18 +162,6 @@ class ProjectImportWizard(models.TransientModel):
                 mapping[odoo_field] = None
                 _logger.warning(f"Colonne '{excel_col}' non trouvée dans le fichier")
         
-        # Gestion spéciale pour PM (Project Manager)
-        if 'PM' in headers:
-            mapping['user_id'] = headers.index('PM')
-        else:
-            mapping['user_id'] = None
-            
-        # Gestion spéciale pour Customer (Partenaire)
-        if 'Customer' in headers:
-            mapping['partner_id'] = headers.index('Customer')
-        else:
-            mapping['partner_id'] = None
-            
         return mapping
 
     def _prepare_project_vals(self, row_data, col_mapping, row_num):
@@ -158,7 +170,9 @@ class ProjectImportWizard(models.TransientModel):
         
         # Champ nom (obligatoire)
         if col_mapping['name'] is not None:
-            vals['name'] = str(row_data[col_mapping['name']]).strip()
+            cell_value = row_data[col_mapping['name']]
+            if cell_value is not None:
+                vals['name'] = str(cell_value).strip()
         
         # Champs de sélection
         selection_fields = {
@@ -172,20 +186,23 @@ class ProjectImportWizard(models.TransientModel):
         
         for odoo_field in selection_fields:
             if col_mapping[odoo_field] is not None:
-                cell_value = str(row_data[col_mapping[odoo_field]]).strip()
-                if cell_value and cell_value.lower() != 'none' and cell_value != '':
-                    # Conversion des valeurs si nécessaire
-                    converted_value = self._convert_selection_value(odoo_field, cell_value)
-                    if converted_value:
-                        vals[odoo_field] = converted_value
+                cell_value = row_data[col_mapping[odoo_field]]
+                if cell_value is not None:
+                    cell_value_str = str(cell_value).strip()
+                    if cell_value_str and cell_value_str.lower() != 'none' and cell_value_str != '':
+                        converted_value = self._convert_selection_value(odoo_field, cell_value_str)
+                        if converted_value:
+                            vals[odoo_field] = converted_value
         
         # Champs texte
         text_fields = ['cat_recurrent', 'description']
         for field in text_fields:
             if col_mapping.get(field) is not None:
-                cell_value = str(row_data[col_mapping[field]]).strip()
-                if cell_value:
-                    vals[field] = cell_value
+                cell_value = row_data[col_mapping[field]]
+                if cell_value is not None:
+                    cell_value_str = str(cell_value).strip()
+                    if cell_value_str:
+                        vals[field] = cell_value_str
         
         # Champs numériques
         numeric_fields = {
@@ -199,12 +216,13 @@ class ProjectImportWizard(models.TransientModel):
         
         for excel_field, odoo_field in numeric_fields.items():
             if col_mapping[odoo_field] is not None:
-                try:
-                    cell_value = row_data[col_mapping[odoo_field]]
-                    if cell_value != '':
-                        vals[odoo_field] = float(cell_value)
-                except (ValueError, TypeError) as e:
-                    _logger.warning(f"Ligne {row_num}: Valeur numérique invalide pour {excel_field}: {cell_value}")
+                cell_value = row_data[col_mapping[odoo_field]]
+                if cell_value is not None:
+                    try:
+                        if cell_value != '':
+                            vals[odoo_field] = float(cell_value)
+                    except (ValueError, TypeError) as e:
+                        _logger.warning(f"Ligne {row_num}: Valeur numérique invalide pour {excel_field}: {cell_value}")
         
         # Champs dates
         date_fields = {'date_in': 'date_in'}
@@ -213,16 +231,13 @@ class ProjectImportWizard(models.TransientModel):
                 cell_value = row_data[col_mapping[odoo_field]]
                 if cell_value:
                     try:
-                        if isinstance(cell_value, float):
-                            # Conversion depuis Excel date (nombre de jours depuis 1900)
-                            date_tuple = xlrd.xldate_as_tuple(cell_value, 0)
-                            if date_tuple[0] > 1900:  # Date valide
-                                vals[odoo_field] = f"{date_tuple[0]}-{date_tuple[1]:02d}-{date_tuple[2]:02d}"
-                        else:
+                        if isinstance(cell_value, datetime):
+                            # C'est déjà un objet datetime
+                            vals[odoo_field] = cell_value.strftime('%Y-%m-%d')
+                        elif isinstance(cell_value, str):
                             # Tentative de parsing de date string
-                            date_str = str(cell_value).strip()
+                            date_str = cell_value.strip()
                             if date_str:
-                                # Essaye différents formats de date
                                 for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y']:
                                     try:
                                         date_obj = datetime.strptime(date_str, fmt)
@@ -237,23 +252,25 @@ class ProjectImportWizard(models.TransientModel):
         relational_fields = {
             'secteur': ('res.partner.category', 'secteur'),
             'pays': ('res.country', 'pays'),
-            'user_id': ('res.users', 'user_id'),  # PM
+            'user_id': ('res.users', 'user_id'),  # PM - Chef de projet
             'am': ('res.users', 'am'),
             'presales': ('res.users', 'presales'),
             'sc': ('res.users', 'sc'),
-            'partner_id': ('res.partner', 'partner_id')  # Customer
+            'partner_id': ('res.partner', 'partner_id')  # Customer - Client
         }
         
         for odoo_field, (model, field_name) in relational_fields.items():
             if col_mapping[odoo_field] is not None:
-                cell_value = str(row_data[col_mapping[odoo_field]]).strip()
-                if cell_value:
-                    record = self._find_related_record(model, cell_value, row_num)
-                    if record:
-                        vals[field_name] = record.id
-                    else:
-                        _logger.warning(f"Ligne {row_num}: {model} non trouvé: {cell_value}")
-        
+                cell_value = row_data[col_mapping[odoo_field]]
+                if cell_value is not None:
+                    cell_value_str = str(cell_value).strip()
+                    if cell_value_str:
+                        record = self._find_related_record(model, cell_value_str, row_num)
+                        if record:
+                            vals[field_name] = record.id
+                        else:
+                            _logger.warning(f"Ligne {row_num}: {model} non trouvé: {cell_value_str}")
+
         return vals
 
     def _convert_selection_value(self, field, value):
@@ -292,7 +309,6 @@ class ProjectImportWizard(models.TransientModel):
                 if value == excel_val.lower():
                     return odoo_val
         
-        # Pour les autres champs, retourne la valeur originale
         return value
 
     def _find_related_record(self, model, search_value, row_num):
@@ -327,16 +343,6 @@ class ProjectImportWizard(models.TransientModel):
             'name': 'Résultat de l\'import',
             'res_model': self._name,
             'res_id': self.id,
-            'view_mode': 'form',
-            'target': 'new',
-        }
-
-    def action_open_wizard(self):
-        """Ouvre le wizard d'import"""
-        return {
-            'type': 'ir.actions.act_window',
-            'name': 'Importer des projets depuis Excel',
-            'res_model': self._name,
             'view_mode': 'form',
             'target': 'new',
         }
