@@ -31,10 +31,18 @@ class ProjectImportWizard(models.TransientModel):
         string='Créer les projets manquants',
         default=True
     )
+    create_missing_records = fields.Boolean(
+        string='Créer les enregistrements manquants (utilisateurs, clients, etc.)',
+        default=True,
+        help="Si activé, crée automatiquement les utilisateurs, clients et autres enregistrements manquants"
+    )
     
     import_log = fields.Text(string='Journal d\'import', readonly=True)
-    success_count = fields.Integer(string='Succès', readonly=True)
+    success_count = fields.Integer(string='Projets créés/mis à jour', readonly=True)
     error_count = fields.Integer(string='Erreurs', readonly=True)
+    created_users_count = fields.Integer(string='Utilisateurs créés', readonly=True)
+    created_partners_count = fields.Integer(string='Clients créés', readonly=True)
+    created_categories_count = fields.Integer(string='Catégories créées', readonly=True)
 
     def action_import(self):
         """Action principale d'import"""
@@ -47,19 +55,23 @@ class ProjectImportWizard(models.TransientModel):
                 "Veuillez l'installer avec: pip install openpyxl"
             ))
 
+        # Réinitialiser les compteurs
         log_messages = ["=== DÉBUT DE L'IMPORT ==="]
         success_count = 0
         error_count = 0
+        created_users_count = 0
+        created_partners_count = 0
+        created_categories_count = 0
 
         try:
             # Lecture du fichier avec openpyxl
             file_content = base64.b64decode(self.import_file)
             workbook = openpyxl.load_workbook(filename=io.BytesIO(file_content), data_only=True)
-            sheet = workbook.active  # Première feuille
+            sheet = workbook.active
             
             # Lecture des en-têtes
             headers = []
-            for cell in sheet[1]:  # Première ligne
+            for cell in sheet[1]:
                 headers.append(str(cell.value).strip() if cell.value else "")
             
             _logger.info(f"En-têtes détectés: {headers}")
@@ -72,20 +84,26 @@ class ProjectImportWizard(models.TransientModel):
                 raise UserError(_("La colonne 'Nom' est obligatoire dans le fichier Excel."))
 
             # Parcourir les lignes de données
-            for row_idx in range(2, sheet.max_row + 1):  # Commence à la ligne 2
+            for row_idx in range(2, sheet.max_row + 1):
                 try:
                     row_data = []
                     for col_idx in range(1, sheet.max_column + 1):
                         cell_value = sheet.cell(row=row_idx, column=col_idx).value
                         row_data.append(cell_value)
                     
-                    project_vals = self._prepare_project_vals(row_data, col_mapping, row_idx)
+                    project_vals, created_counts = self._prepare_project_vals(row_data, col_mapping, row_idx)
+                    
+                    # Mettre à jour les compteurs de création
+                    created_users_count += created_counts.get('users', 0)
+                    created_partners_count += created_counts.get('partners', 0)
+                    created_categories_count += created_counts.get('categories', 0)
                     
                     project_name = project_vals.get('name')
                     if not project_name:
                         log_messages.append(f"⚠️ Ligne {row_idx}: Nom manquant, ligne ignorée")
                         continue
 
+                    # Rechercher le projet existant
                     project = self.env['project.project'].search([
                         ('name', '=', project_name)
                     ], limit=1)
@@ -106,15 +124,24 @@ class ProjectImportWizard(models.TransientModel):
                     log_messages.append(f"✗ Ligne {row_idx}: Erreur - {str(e)}")
                     _logger.error(f"Erreur ligne {row_idx}: {str(e)}")
 
+            # Résumé final
             log_messages.append(f"\n=== RÉSUMÉ ===")
             log_messages.append(f"Projets traités avec succès: {success_count}")
             log_messages.append(f"Erreurs: {error_count}")
+            if self.create_missing_records:
+                log_messages.append(f"Utilisateurs créés: {created_users_count}")
+                log_messages.append(f"Clients créés: {created_partners_count}")
+                log_messages.append(f"Catégories créées: {created_categories_count}")
             log_messages.append("=== FIN DE L'IMPORT ===")
 
+            # Mettre à jour le wizard avec les résultats
             self.write({
                 'import_log': '\n'.join(log_messages),
                 'success_count': success_count,
-                'error_count': error_count
+                'error_count': error_count,
+                'created_users_count': created_users_count,
+                'created_partners_count': created_partners_count,
+                'created_categories_count': created_categories_count,
             })
 
             return self._show_result_wizard()
@@ -127,9 +154,9 @@ class ProjectImportWizard(models.TransientModel):
         """Crée le mapping entre les colonnes Excel et les champs Odoo"""
         mapping = {}
         
-        # Mapping direct des colonnes
         column_mapping = {
             'Nom': 'name',
+            'PM': 'user_id',
             'Nature': 'nature',
             'BU': 'bu',
             'Domaine': 'domaine',
@@ -139,6 +166,7 @@ class ProjectImportWizard(models.TransientModel):
             'Presales': 'presales',
             'Date IN': 'date_in',
             'Pays': 'pays',
+            'Customer': 'partner_id',
             'Secteur': 'secteur',
             'Description du Projet': 'description',
             'Circuit': 'circuit',
@@ -151,8 +179,6 @@ class ProjectImportWizard(models.TransientModel):
             'CAS': 'cas',
             'Statut': 'etat_projet',
             'Update Date': 'write_date',
-            'PM': 'user_id',  # Chef de projet
-            'Customer': 'partner_id'  # Client
         }
         
         for excel_col, odoo_field in column_mapping.items():
@@ -167,6 +193,7 @@ class ProjectImportWizard(models.TransientModel):
     def _prepare_project_vals(self, row_data, col_mapping, row_num):
         """Prépare les valeurs pour la création/mise à jour du projet"""
         vals = {}
+        created_counts = {'users': 0, 'partners': 0, 'categories': 0}
         
         # Champ nom (obligatoire)
         if col_mapping['name'] is not None:
@@ -178,7 +205,7 @@ class ProjectImportWizard(models.TransientModel):
         selection_fields = {
             'nature': 'nature',
             'bu': 'bu',
-            'domaine': 'domaine',
+            'domaine': 'domaine', 
             'revenue_type': 'revenue_type',
             'circuit': 'circuit',
             'etat_projet': 'etat_projet'
@@ -221,7 +248,7 @@ class ProjectImportWizard(models.TransientModel):
                     try:
                         if cell_value != '':
                             vals[odoo_field] = float(cell_value)
-                    except (ValueError, TypeError) as e:
+                    except (ValueError, TypeError):
                         _logger.warning(f"Ligne {row_num}: Valeur numérique invalide pour {excel_field}: {cell_value}")
         
         # Champs dates
@@ -232,10 +259,8 @@ class ProjectImportWizard(models.TransientModel):
                 if cell_value:
                     try:
                         if isinstance(cell_value, datetime):
-                            # C'est déjà un objet datetime
                             vals[odoo_field] = cell_value.strftime('%Y-%m-%d')
                         elif isinstance(cell_value, str):
-                            # Tentative de parsing de date string
                             date_str = cell_value.strip()
                             if date_str:
                                 for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y']:
@@ -245,45 +270,139 @@ class ProjectImportWizard(models.TransientModel):
                                         break
                                     except ValueError:
                                         continue
-                    except Exception as e:
+                    except Exception:
                         _logger.warning(f"Ligne {row_num}: Date invalide pour {odoo_field}: {cell_value}")
         
-        # Champs relationnels (Many2one)
+        # Champs relationnels avec création automatique
         relational_fields = {
-            'secteur': ('res.partner.category', 'secteur'),
-            'pays': ('res.country', 'pays'),
-            'user_id': ('res.users', 'user_id'),  # PM - Chef de projet
-            'am': ('res.users', 'am'),
-            'presales': ('res.users', 'presales'),
-            'sc': ('res.users', 'sc'),
-            'partner_id': ('res.partner', 'partner_id')  # Customer - Client
+            'user_id': ('res.users', 'PM'),  # Chef de projet
+            'am': ('res.users', 'AM'),       # Account Manager
+            'presales': ('res.users', 'Presales'),
+            'sc': ('res.users', 'SC'),       # Solutions Consultant
+            'partner_id': ('res.partner', 'Customer'),
+            'secteur': ('res.partner.category', 'Secteur'),
+            'pays': ('res.country', 'Pays'),
         }
         
-        for odoo_field, (model, field_name) in relational_fields.items():
+        for odoo_field, (model, field_label) in relational_fields.items():
             if col_mapping[odoo_field] is not None:
                 cell_value = row_data[col_mapping[odoo_field]]
                 if cell_value is not None:
                     cell_value_str = str(cell_value).strip()
                     if cell_value_str:
-                        record = self._find_related_record(model, cell_value_str, row_num)
+                        record, created = self._get_or_create_record(
+                            model, cell_value_str, row_num, field_label
+                        )
                         if record:
-                            vals[field_name] = record.id
-                        else:
-                            _logger.warning(f"Ligne {row_num}: {model} non trouvé: {cell_value_str}")
+                            vals[odoo_field] = record.id
+                            if created:
+                                if model == 'res.users':
+                                    created_counts['users'] += 1
+                                elif model == 'res.partner':
+                                    created_counts['partners'] += 1
+                                elif model == 'res.partner.category':
+                                    created_counts['categories'] += 1
 
-        return vals
+        return vals, created_counts
+
+    def _get_or_create_record(self, model, search_value, row_num, field_label):
+        """Trouve ou crée un enregistrement"""
+        try:
+            # Recherche d'abord l'enregistrement existant
+            record = None
+            
+            if model == 'res.users':
+                record = self.env[model].search([
+                    '|', ('name', '=ilike', search_value),
+                    ('login', '=ilike', search_value)
+                ], limit=1)
+                
+            elif model == 'res.partner':
+                record = self.env[model].search([
+                    ('name', '=ilike', search_value)
+                ], limit=1)
+                
+            elif model == 'res.partner.category':
+                record = self.env[model].search([
+                    ('name', '=ilike', search_value)
+                ], limit=1)
+                
+            elif model == 'res.country':
+                record = self.env[model].search([
+                    '|', ('name', '=ilike', search_value),
+                    ('code', '=ilike', search_value)
+                ], limit=1)
+            
+            # Si trouvé, retourner l'enregistrement
+            if record:
+                return record, False
+            
+            # Si non trouvé et création activée, créer l'enregistrement
+            if self.create_missing_records:
+                _logger.info(f"Création {model}: '{search_value}'")
+                
+                if model == 'res.users':
+                    # Créer un utilisateur avec un login basé sur le nom
+                    login = self._generate_login(search_value)
+                    record = self.env[model].create({
+                        'name': search_value,
+                        'login': login,
+                        'password': login,  # Mot de passe par défaut
+                    })
+                    return record, True
+                    
+                elif model == 'res.partner':
+                    record = self.env[model].create({
+                        'name': search_value,
+                        'company_type': 'company',
+                    })
+                    return record, True
+                    
+                elif model == 'res.partner.category':
+                    record = self.env[model].create({
+                        'name': search_value,
+                    })
+                    return record, True
+                    
+                elif model == 'res.country':
+                    _logger.warning(f"Ligne {row_num}: Pays non trouvé et création non supportée: '{search_value}'")
+            
+            return None, False
+            
+        except Exception as e:
+            _logger.error(f"Erreur recherche/création {model} '{search_value}': {str(e)}")
+            return None, False
+
+    def _generate_login(self, name):
+        """Génère un login à partir d'un nom"""
+        # Nettoyer le nom pour créer un login
+        login = name.lower().strip()
+        login = ''.join(c for c in login if c.isalnum() or c in [' ', '-', '_']).strip()
+        login = login.replace(' ', '.').replace('-', '.')
+        
+        # Vérifier si le login existe déjà
+        base_login = login
+        counter = 1
+        while self.env['res.users'].search([('login', '=', login)], limit=1):
+            login = f"{base_login}{counter}"
+            counter += 1
+            
+        return login
+
     def _convert_selection_value(self, field, value):
         """Convertit les valeurs de sélection depuis Excel vers Odoo"""
         original_value = value
         value = value.strip().lower()
         
-        # Mapping des valeurs de sélection
         selection_mapping = {
             'nature': {
                 'all': 'all',
                 'end to end': 'end_to_end',
                 'livraison': 'livraison',
                 'service pro': 'service_pro',
+                'services pro': 'service_pro',
+                'incentive': 'all',
+                'refacturation': 'all',
             },
             'revenue_type': {
                 'one shot': 'oneshot',
@@ -301,12 +420,13 @@ class ProjectImportWizard(models.TransientModel):
                 'cybersecurity': 'cybersecurity',
                 'formation': 'formation',
                 'security': 'security',
+                'iic': 'ict',
+                'cybersecurite': 'cybersecurity',
             },
             'domaine': {
-                # Mapping complet pour le domaine basé sur votre modèle
                 'secured it (sec)': 'secured_it',
                 'agile infrastructure & cloud (aic)': 'agile_infrastructure_cloud',
-                'modern network integration (mni)': 'modern_network_integration', 
+                'modern network integration (mni)': 'modern_network_integration',
                 'digital workspace (dws)': 'digital_workspace',
                 'expert & managed services - run': 'expert_managed_services_run',
                 'expert & managed services - train': 'expert_managed_services_train',
@@ -319,56 +439,61 @@ class ProjectImportWizard(models.TransientModel):
                 'none': 'none'
             },
             'etat_projet': {
-                '7-cloturé': 'cloture',
-                'cloturé': 'cloture',
                 '0-annulé': 'cancelled',
                 '1-non démarré': 'non_demarre',
-                '3-en cours': 'en_cours_production',
-                '4-terminé': 'termine_pv_bl_signe',
-                '5-facturé': 'facture_attente_df',
+                '3-en cours - bloqué': 'en_cours_bloque',
+                '3-en cours - provisionning': 'en_cours_provisionning',
+                '3-en cours - production': 'en_cours_production',
+                '3-en cours - expedition': 'en_cours_expedition',
+                '3-en cours - dedouanement': 'en_cours_dedouanement',
+                '3-en cours - atelier technique': 'en_cours_atelier_technique',
+                '3-en cours - deploiement': 'en_cours_deploiement',
+                '3-en cours - formation': 'en_cours_formation',
+                '3-en cours - kick off client': 'en_cours_kickoff_client',
+                '3-en cours - standby client': 'en_cours_standby_client',
+                '3-en cours - standby technical issue': 'en_cours_standby_technical_issue',
+                '3-en cours - attente prérequis': 'en_cours_attente_prerequis',
+                '3-en cours - tests et recette': 'en_cours_tests_recette',
+                '3-en cours - rli': 'en_cours_rli',
+                '4-terminé - attente pv/bl': 'termine_attente_pv_bl',
+                '4-terminé - lévée de reserve': 'termine_levee_reserve',
+                '4-terminé - pv/bl signé': 'termine_pv_bl_signe',
+                '5-facturé - attente df': 'facture_attente_df',
+                '5-facturé - attente livraison': 'facture_attente_livraison',
+                '5-facturé - prestations en cours': 'facture_prestations_en_cours',
+                '6-draft': 'draft',
                 '6-dossier indisponible': 'dossier_indisponible',
                 '7-cloturé': 'cloture',
-                '8-suivi': 'suivi_contrat_services',
-                '9-suspendu': 'suspendu'
+                '8-suivi - contrat licence': 'suivi_contrat_licence',
+                '8-suivi - contrat mixte': 'suivi_contrat_mixte',
+                '8-suivi - contrat de services': 'suivi_contrat_services',
+                '9-suspendu': 'suspendu',
+                'cloturé': 'cloture',
+                'non démarré': 'non_demarre',
+                'en cours': 'en_cours_production',
+                'terminé': 'termine_pv_bl_signe',
+                'facturé': 'facture_attente_df',
+                'draft': 'draft',
+                'suspendu': 'suspendu',
             }
         }
         
         if field in selection_mapping:
             for excel_val, odoo_val in selection_mapping[field].items():
                 if value == excel_val.lower():
-                    _logger.info(f"Mapping {field}: '{original_value}' -> '{odoo_val}'")
                     return odoo_val
         
-        _logger.warning(f"Aucun mapping trouvé pour {field}: '{original_value}'")
-        # Pour le domaine, on retourne 'others' si aucune correspondance
-        if field == 'domaine':
-            return 'others'
+        # Fallback par défaut
+        fallback_values = {
+            'nature': 'all',
+            'bu': 'ict', 
+            'domaine': 'others',
+            'etat_projet': 'non_demarre',
+            'revenue_type': 'oneshot',
+            'circuit': 'normal'
+        }
         
-        return value
-    def _find_related_record(self, model, search_value, row_num):
-        """Trouve un enregistrement related par nom ou autre champ"""
-        try:
-            if model == 'res.users':
-                return self.env[model].search([
-                    '|', ('name', '=ilike', search_value),
-                    ('login', '=ilike', search_value)
-                ], limit=1)
-            elif model == 'res.partner':
-                return self.env[model].search([
-                    ('name', '=ilike', search_value)
-                ], limit=1)
-            elif model == 'res.partner.category':
-                return self.env[model].search([
-                    ('name', '=ilike', search_value)
-                ], limit=1)
-            elif model == 'res.country':
-                return self.env[model].search([
-                    '|', ('name', '=ilike', search_value),
-                    ('code', '=ilike', search_value)
-                ], limit=1)
-        except Exception as e:
-            _logger.error(f"Erreur recherche {model} '{search_value}': {str(e)}")
-        return None
+        return fallback_values.get(field, value)
 
     def _show_result_wizard(self):
         """Affiche le wizard avec les résultats"""
