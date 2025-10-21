@@ -18,7 +18,7 @@ except ImportError:
 COLUMN_MAPPING = {
     'Nom': 'name',
     'PM': 'user_id', # Project Manager (res.users)
-    'AM': 'account_manager_id', 
+    'AM': 'am', 
     'Presales': 'presales_id', 
     'Nature': 'nature', # Sélection
     'BU': 'bu', # Sélection
