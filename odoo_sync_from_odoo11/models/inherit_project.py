@@ -93,6 +93,31 @@ class ProjectInherit(models.Model):
     cas_train =fields.Float(string='CAS TRAIN', default=0.0)
     cas_sw =fields.Float(string='CAS SW', default=0.0)
     cas_hw =fields.Float(string='CAS HW', default=0.0)
+    secteur = fields.Many2one(
+        'res.partner.category',
+        string='Secteur',
+        compute='_compute_secteur_from_bc',
+        inverse='_inverse_secteur_to_partner',
+        store=True
+    )
+    
+    @api.depends('bc.partner_id.category_id', 'partner_id.category_id')
+    def _compute_secteur_from_bc(self):
+        for record in self:
+            # Priorité 1 : Commande liée (BC)
+            if record.bc and record.bc.partner_id.category_id:
+                record.secteur = record.bc.partner_id.category_id[0]
+            # Priorité 2 : Partenaire direct du projet
+            elif record.partner_id and record.partner_id.category_id:
+                record.secteur = record.partner_id.category_id[0]
+            else:
+                record.secteur = False
+    
+    def _inverse_secteur_to_partner(self):
+        """Quand on modifie le secteur depuis le projet, on met à jour le partenaire"""
+        for record in self:
+            if record.partner_id and record.secteur:
+                record.partner_id.category_id = [(6, 0, [record.secteur.id])]
     # secteur= fields.Char(string='Secteur', compute='_compute_secteur', store=True)
     
     
