@@ -60,13 +60,13 @@
             <field name="inherit_id" ref="project.view_project_kanban"/>
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='partner_id']" position="after">
-                    <div class="o_row">
+                    <div class="o_form_group o_group_col_6">
                         <label for="bc" string="BC"/>
-                        <field name="bc" readonly="1" class="oe_inline"/>
+                        <field name="bc" readonly="1" class="o_form_label"/>
                     </div>
-                    <div class="o_row">
+                    <div class="o_form_group o_group_col_6">
                         <label for="etat_projet" string="Etat"/>
-                        <field name="etat_projet" string="Etat" class="oe_inline"/>
+                        <field name="etat_projet" string="Etat" class="o_form_label"/>
                     </div>
                 </xpath>
             </field>
