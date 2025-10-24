@@ -59,15 +59,16 @@
             <field name="model">project.project</field>
             <field name="inherit_id" ref="project.view_project_kanban"/>
             <field name="arch" type="xml">
-                <xpath expr="//field[@name='partner_id']" position="after">
-                    <div class="o_row">
-                        <label for="bc" string="BC"/>
-                        <field name="bc" readonly="1"/>
+                <xpath expr="//div[@class='o_kanban_primary_bottom']" position="inside">
+                <div>
+                        <strong>Caf :</strong>
+                        <t t-esc="caf or 'N/A'"/>
                     </div>
-                    <div class="o_row">
-                        <label for="etat_projet" string="Etat"/>
-                        <field name="etat_projet"/>
+                    <div>
+                        <strong>Etat :</strong>
+                        <t t-esc="etat_projet"/>
                     </div>
+                    
                 </xpath>
             </field>
         </record>
