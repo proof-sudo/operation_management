@@ -54,17 +54,22 @@
             </field>
         </record>
 
-        <record id="inherit_view_id_inherit_project_kanban" model="ir.ui.view">
+      <record id="inherit_view_id_inherit_project_kanban" model="ir.ui.view">
             <field name="name">project.view.form.inherit.project.kanban</field>
             <field name="model">project.project</field>
             <field name="inherit_id" ref="project.view_project_kanban"/>
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='partner_id']" position="after">
-                    <field name="bc" readonly="1"/>
-                    <field name="etat_projet" string="Etat"/>
+                    <div class="o_row">
+                        <label for="bc" string="BC"/>
+                        <field name="bc" readonly="1" class="oe_inline"/>
+                    </div>
+                    <div class="o_row">
+                        <label for="etat_projet" string="Etat"/>
+                        <field name="etat_projet" string="Etat" class="oe_inline"/>
+                    </div>
                 </xpath>
             </field>
-        
         </record>
     </data>
 </odoo>
