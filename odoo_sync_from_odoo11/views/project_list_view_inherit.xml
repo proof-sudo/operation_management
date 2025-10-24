@@ -13,6 +13,7 @@
                 <!-- Section Nature et Domaine -->
                 <field name="nature" string="Nature" optional="show"/>
                 <field name="domaine" string="Domaine" optional="show"/>
+                <field name="partner_id" string="Partenaire" optional="show"/>
                 
                 <!-- Section Commande et Références -->
                 <field name="bc" string="Commande Liée" optional="show"/>
