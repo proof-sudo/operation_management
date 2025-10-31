@@ -167,7 +167,13 @@ class OdooSyncController(http.Controller):
                 return {"status": "success", "message": "Commande déjà existante", "purchase_id": existing_order.id}
 
             # Gérer le dossier
-            dossier_name = self._extract_dossier_name(data.get('dossier_data'))
+            dossier_data = data.get('dossier_data', {})
+            dossier_name = self._extract_dossier_name(dossier_data)
+            ref_fp = dossier_data.get('ref_bc_customer', '')
+            client_info = dossier_data.get('client_id', False)
+            client_id = False
+            if client_info and isinstance(client_info, list):
+                client_id = self._find_partner(client_info)
 
             # Préparer les valeurs pour la commande
             order_vals = {
@@ -180,7 +186,10 @@ class OdooSyncController(http.Controller):
                 'notes': data.get('notes', ''),
                 'origin': f"Sync Odoo11: {data.get('name')}",
                 'company_id': request.env.company.id,
+                'ref_Fp': ref_fp,
             }
+            if client_id:
+                order_vals['client_id'] = client_id
 
             # Ajouter partner_ref s'il existe
             if data.get('partner_ref'):
