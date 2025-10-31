@@ -15,5 +15,13 @@ class PurchaseOrder(models.Model):
     ], string='Statut de Livraison', default='en_attente')
     date_planned = fields.Datetime(string='Date Prévisionnelle de Livraison')
     
+class DossierCommercial(models.Model):
+    _inherit = 'dossier.commercial'
+    
+    purchase_order_ids = fields.One2many('purchase.order', 'dossier_id', string='Commandes d\'Achat Associées')
+    client_id = fields.Many2one(string='Client', comodel_name='res.partner', ondelete='restrict')
+    ref_bon_commande_client = fields.Char(string='Référence Bon de Commande Client')
+    nom_projet = fields.Char(string='Nom du Projet')
+    
 
   
