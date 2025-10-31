@@ -13,6 +13,7 @@ class PurchaseOrder(models.Model):
         ('annule', 'Annulé'),
         ('placee', 'Placée')
     ], string='Statut de Livraison', default='en_attente')
+    date_planned = fields.Datetime(string='Date Prévisionnelle de Livraison')
     
 
   
