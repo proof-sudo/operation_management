@@ -54,23 +54,23 @@
             </field>
         </record>
 
-      <!-- <record id="inherit_view_id_inherit_project_kanban" model="ir.ui.view">
-            <field name="name">project.view.form.inherit.project.kanban</field>
-            <field name="model">project.project</field>
-            <field name="inherit_id" ref="project.view_project_kanban"/>
-            <field name="arch" type="xml">
-                <xpath expr="//div[@class='o_kanban_primary_bottom']" position="inside">
-                <div>
-                        <strong>Caf :</strong>
-                        <t t-esc="caf or 'N/A'"/>
-                    </div>
+        <!-- <record id="inherit_view_id_inherit_project_kanban" model="ir.ui.view">
+                <field name="name">project.view.form.inherit.project.kanban</field>
+                <field name="model">project.project</field>
+                <field name="inherit_id" ref="project.view_project_kanban"/>
+                <field name="arch" type="xml">
+                    <xpath expr="//div[@class='o_kanban_primary_bottom']" position="inside">
                     <div>
-                        <strong>Etat :</strong>
-                        <t t-esc="etat_projet"/>
-                    </div>
-                    
-                </xpath>
-            </field>
-        </record> -->
+                            <strong>Caf :</strong>
+                            <t t-esc="caf or 'N/A'"/>
+                        </div>
+                        <div>
+                            <strong>Etat :</strong>
+                            <t t-esc="etat_projet"/>
+                        </div>
+                        
+                    </xpath>
+                </field>
+            </record> -->
     </data>
 </odoo>

@@ -26,6 +26,7 @@
         'views/project_list_view_inherit.xml',
         'views/create_project_wizard_view.xml',
         'views/purchase_order_view.xml',
+        'views/dossier_commercial_view.xml',
        
         
         

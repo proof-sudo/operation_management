@@ -13,6 +13,16 @@ class PurchaseOrder(models.Model):
         ('annule', 'Annulé'),
         ('placee', 'Placée')
     ], string='Statut de Livraison', default='en_attente')
+    date_planned = fields.Datetime(string='Date Prévisionnelle de Livraison')
+    ref_Fp = fields.Char(string='Commande Client / FP')
+    client_id = fields.Many2one(string='Client', comodel_name='res.partner', ondelete='restrict')
+    
+class DossierCommercial(models.Model):
+    _inherit = 'dossier.commercial'
+    
+    purchase_order_ids = fields.One2many('purchase.order', 'dossier_id', string='Commandes d\'Achat Associées')
+    client_id = fields.Many2one(string='Client', comodel_name='res.partner', ondelete='restrict')
+    ref_bon_commande_client = fields.Char(string='Référence Bon de Commande Client')
     
 
   

@@ -16,7 +16,9 @@
                 </xpath>
 
                 <xpath expr="//field[@name='project_id']" position="before">
-                    <field name="eta_constructeur" string="Date d'Enlèvement"/>
+                    <field name="eta_constructeur" string="ETA Constructeur"/>
+                    <field name="ref_Fp" string="Fp" invisible="1"/>
+                    <field name="client_id" string="Client" invisible="1"/>
                 </xpath>
                 
                 
@@ -33,6 +35,8 @@
                 <field name="partner_ref" position="after">
                    <field name="eta_constructeur" string="ETA Constructeur" optional="show"/>
                     <field name="dossier_id" string="Dossier" optional="show"/>
+                    <field name="ref_Fp" string="FP" optional="show"/>
+                    <field name="client_id" string="Client" optional="show"/>
                     <field name="statut_livraison" string="Statut de Livraison" optional="show"/>
                 </field>
             </field>
