@@ -16,7 +16,7 @@
                 </xpath>
 
                 <xpath expr="//field[@name='project_id']" position="before">
-                    <field name="eta_constructeur" string="Date d'Enlèvement"/>
+                    <field name="eta_constructeur" string="ETA Constructeur"/>
                 </xpath>
                 
                 
