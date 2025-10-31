@@ -8,7 +8,6 @@ class SaleOrder(models.Model):
     delaicontractuel = fields.Date(string='Délai Contractuel')
     priorite = fields.Selection([('urgent', 'Urgent'), ('normal', 'Normal'), ('basse', 'Basse')], string='Priorité', default='normal')
 
-    # Méthode appelée par le bouton "Créer un projet"
     def action_open_create_project_wizard(self):
         self.ensure_one()
         
